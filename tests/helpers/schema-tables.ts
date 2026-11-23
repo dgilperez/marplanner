@@ -53,4 +53,6 @@ export const ALL_SCHEMA_TABLES: readonly string[] = [
   "seed_profile_state",
   "settings_objects",
   "time_announcements",
+  "todo_items",
+  "todo_lists",
 ];

@@ -64,6 +64,8 @@ const EXPECTED_SCHEMA_TABLES = [
   "plugin_activation_registry",
   "plugin_lifecycle_operations",
   "plugin_migration_journal",
+  "todo_lists",
+  "todo_items",
 ].sort();
 
 describe("foundation host API", () => {

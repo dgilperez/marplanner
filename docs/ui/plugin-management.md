@@ -13,7 +13,7 @@ This contract fixes the observable plugin UI behavior that is not expressible in
 
 ## Catalog states
 
-Each of the exact nine manifest entries presents:
+Each of the exact ten manifest entries presents:
 
 - localized name and concise contribution description;
 - the first-party trust label, declared contribution groups, runtime/compatibility requirements, and settings-schema metadata without configured or default values;
@@ -71,8 +71,8 @@ The existing printing status polling path is retired once printing visibility de
 
 The UI/e2e test harness must provide deterministic fixtures for:
 
-1. fresh installation: all nine inactive;
-2. all nine active (seeded directly; since the 2026-10-16 migration squash every install starts as a fresh lineage with all nine inactive);
+1. fresh installation: all ten inactive;
+2. all ten active (seeded directly; since the 2026-10-16 migration squash every install starts as a fresh lineage with all ten inactive);
 3. one active plugin draining while another remains interactive;
 4. one errored plugin with each class of safe message represented across automated tests;
 5. inactive direct-route navigation;

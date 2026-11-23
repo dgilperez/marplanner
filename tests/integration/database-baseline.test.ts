@@ -231,6 +231,7 @@ describe("database lifecycle fresh current baseline", () => {
       "routine_assignments.member_id->members.id NO ACTION",
       "routine_assignments.routine_id->routines.id NO ACTION",
       "routines.day_period_id->day_periods.id NO ACTION",
+      "todo_items.list_id->todo_lists.id CASCADE",
     ]);
     expect(db.pragma("foreign_key_check")).toEqual([]);
   });
@@ -254,7 +255,7 @@ describe("database lifecycle fresh current baseline", () => {
       count: 1,
     });
     expect(db.prepare("SELECT COUNT(*) AS count FROM plugin_activation_registry").get()).toEqual({
-      count: 9,
+      count: 10,
     });
     expect(
       db.prepare("SELECT DISTINCT state FROM plugin_activation_registry ORDER BY state").all()

@@ -685,6 +685,75 @@ export interface DailyMessageUpsert {
   text: string;
 }
 
+// ─── To-dos DTOs ─────────────────────────────────────────────
+
+/** TodoList — a named group of household to-dos. `openCount` is derived on read. */
+export interface TodoList {
+  id: string;
+  name: string;
+  openCount: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** TodoListWrite — create and rename payload. */
+export interface TodoListWrite {
+  name: string;
+}
+
+/** Todo — one household to-do. It is done when `completedAt` is set. `assigneeMemberId` is a
+ * soft reference: it may name a member who has since been archived or removed.
+ */
+export interface Todo {
+  id: string;
+  listId: string;
+  title: string;
+  notes: string | null;
+  dueDate: string | null;
+  assigneeMemberId: string | null;
+  completedAt: number | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** TodoCreate — create payload; omitted optional fields are stored as null. */
+export interface TodoCreate {
+  listId: string;
+  title: string;
+  notes?: string | null;
+  dueDate?: string | null;
+  assigneeMemberId?: string | null;
+}
+
+/** TodoPatch — partial edit; `null` clears a nullable field. */
+export type TodoPatch = Partial<TodoCreate>;
+
+export const TODO_STATUS_FILTERS = ["open", "done", "all"] as const;
+export type TodoStatusFilter = (typeof TODO_STATUS_FILTERS)[number];
+
+/** The fields a to-do list write and a to-do write may name; any other field is rejected. */
+export const TODO_LIST_WRITE_FIELDS = ["name"] as const;
+export const TODO_WRITE_FIELDS = [
+  "listId",
+  "title",
+  "notes",
+  "dueDate",
+  "assigneeMemberId",
+] as const;
+
+/** Length caps of the to-do text fields. A list name and a title are measured after trimming. */
+export const TODO_LIST_NAME_MAX_LENGTH = 80;
+export const TODO_TITLE_MAX_LENGTH = 200;
+export const TODO_NOTES_MAX_LENGTH = 2000;
+
+/** True when `text` draws something: it holds a character that is neither Unicode white space,
+ * nor default-ignorable (zero-width space and joiners, variation selectors), nor a control or
+ * format character (direction marks). A label made only of those reads as blank.
+ */
+export function hasVisibleCharacter(text: string): boolean {
+  return /[^\p{White_Space}\p{Default_Ignorable_Code_Point}\p{Cc}\p{Cf}]/u.test(text);
+}
+
 // ─── Daily Briefing DTOs ─────────────────────────────────────
 
 export * from "./dailyBriefing.js";
@@ -1069,6 +1138,13 @@ export interface ResetTodayPrintsResponse {
  */
 export const AUTH_CREDENTIAL_INVALID_CODE = "credential_invalid";
 export const AUTH_SCOPE_DENIED_CODE = "scope_denied";
+
+/** The body of the 503 the plugin lifecycle gate (`src/server/plugins/http.ts`) answers for every
+ * route of a plugin that is not active. Its code is in `code`, like the auth codes above. */
+export const PLUGIN_UNAVAILABLE_RESPONSE = Object.freeze({
+  code: "plugin_unavailable" as const,
+  message: "This plugin is unavailable." as const,
+});
 
 // ─── Device credential DTOs ──────────────────────────────────────────────
 

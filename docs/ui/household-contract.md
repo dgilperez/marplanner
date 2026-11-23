@@ -2,8 +2,9 @@
 
 ## Family shell
 
-Every provisioned family route renders persistent chrome with visible Home, Calendar, Tasks, and
-Meals controls. The active destination is semantic. Options holds Admin only; printer pairing is
+Every provisioned family route renders persistent chrome with visible Home, Calendar and Tasks
+controls, followed by Meals and To-dos. Each of those two is shown only while its own plugin is
+active, so deactivating one leaves the other in place. The active destination is semantic. Options holds Admin only; printer pairing is
 not a menu item. While Admin is its only entry, the Options button is the Admin affordance itself
 (same `admin-affordance` testid) rather than a one-item menu; a second entry turns it back into a
 disclosure menu with Admin first. A plain tap, click, Enter/Space or assistive-technology activation
@@ -46,6 +47,31 @@ dialog. The meals widget has no title: the whole widget is one link to `/meals` 
 
 The agenda header is the household date (display font, bold) with a right-aligned "View all ›" link to `/calendar`; the section is a region named "Today's agenda". Agenda all-day items precede timed items. Text/icon/weight identify temporal states without colour.
 Multi-member items render every active assigned identity plus text.
+
+While the to-dos plugin is active, a third group follows "All day" and "Scheduled": "To-dos"
+("Pendientes"), with an "All to-dos ›" link to `/todos` at the end of its header rule. It lists the
+open to-dos due on the household date, then the overdue ones, each of which carries an "Overdue"
+badge and its date. A row has the assignee's identity accent, the assignee's name for assistive
+technology (or "Unassigned") and one checkbox named after the to-do; checking it completes the
+to-do and removes the row. The agenda says "Nothing scheduled today." only when it has neither
+events nor due to-dos, and it does not say so while the to-dos read is pending. A failed to-dos
+read shows its own notice and "Retry to-dos" inside the group and leaves the events in place.
+
+## To-dos
+
+`/todos` is a family page with no PIN gate, like the Calendar page's own events. A row of pills
+names every list with its count of open to-dos, one selected at a time, next to "New list". Below
+it the selected list has its name, "Rename list" and "Delete list"; deleting asks first and says
+how many to-dos go with the list. A text field adds a to-do on Enter, and "Add with details"
+opens the full form with that text as the title.
+
+Each to-do is a row: a checkbox named after the to-do, its due date in the household language,
+its assignee as an identity-colour dot and name, and an "Edit: <title>" button that opens the
+form. An overdue to-do carries an "Overdue" badge with an icon, so the state is text and never
+colour alone. The assignee picker offers active adults only; tapping the selected adult again
+leaves the to-do with nobody. An assignee who has since been archived stays in the picker of that
+to-do, without an identity colour in the row. "Done" is collapsed until opened; unchecking a done
+to-do reopens it. The selected list is not remembered across a reload: the first list is selected.
 
 ## Meals
 

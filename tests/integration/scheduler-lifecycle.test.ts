@@ -190,6 +190,9 @@ const GET_ROUTE_TEMPLATES = [
   "/api/telemetry/client-log",
   "/api/telemetry/system-status",
   "/api/time-announcements",
+  "/api/todos",
+  "/api/todos/:id",
+  "/api/todos/lists",
   "/api/weather",
   "/health",
 ].sort();

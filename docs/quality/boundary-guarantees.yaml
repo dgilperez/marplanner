@@ -1795,3 +1795,128 @@ guarantees:
     disposition: active
     owner: network-devices
     spec: network-devices
+  - id: TODOS-INV-01
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "List name trimmed, with a visible character, at most 80 chars, unique among lists (exact comparison)."
+  - id: TODOS-INV-02
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "A to-do belongs to one existing list; deleting a list deletes its to-dos."
+  - id: TODOS-INV-03
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Title trimmed, non-blank, at most 200 chars; notes at most 2000, blank stored as null."
+  - id: TODOS-INV-04
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Due date strict YYYY-MM-DD or null."
+  - id: TODOS-INV-05
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "A changed assignee must be an active parent; an unchanged one is not re-checked."
+  - id: TODOS-INV-06
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Soft member reference, no FK; reads return the stored id for archived or missing members."
+  - id: TODOS-INV-07
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Completion idempotent and keeps the first completedAt; reopen idempotent; edit never changes completion."
+  - id: TODOS-INV-08
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Allow-listed write bodies; null clears a nullable field; an edit names at least one field."
+  - id: TODOS-INV-09
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Integer epoch ms timestamps; updatedAt moves forward on every change."
+  - id: TODOS-INV-10
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Module reaches the host only through host-api and touches only its own tables."
+  - id: TODOS-AC-01
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "401 without device credential; 503 while the plugin is inactive."
+  - id: TODOS-AC-02
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Blank, over-long or duplicate list name rejected, nothing stored."
+  - id: TODOS-AC-03
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Deleting a list removes its to-dos and leaves other lists untouched."
+  - id: TODOS-AC-04
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Child, archived or unknown assignee rejected on create and edit."
+  - id: TODOS-AC-05
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "A to-do with a later-archived assignee stays readable, filterable, editable and completable."
+  - id: TODOS-AC-06
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Completing twice returns the first completedAt; reopening twice leaves it open."
+  - id: TODOS-AC-07
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Default listing: open to-dos by due date, undated last; dueBy includes overdue, excludes undated."
+  - id: TODOS-AC-08
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Unsupported body field rejected; null clears notes, due date and assignee."
+  - id: TODOS-AC-09
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Navigation shows To-dos only while its plugin is active; Meals and To-dos are gated separately."
+  - id: TODOS-AC-10
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Page lists the selected list's open to-dos in API order; overdue marked with text and date."
+  - id: TODOS-AC-11
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Assignee picker offers active parents only and accepts nobody."
+  - id: TODOS-AC-12
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Agenda group lists open to-dos due today then overdue; completing removes the row; absent while inactive."
+  - id: TODOS-AC-13
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Agenda empty message only with no events and no due to-dos."
+  - id: TODOS-AC-14
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Deleting a list on the page asks for the admin PIN (UI gate); no other action does."
+  - id: TODOS-AC-15
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "A page open while the plugin is deactivated says to-dos are turned off."

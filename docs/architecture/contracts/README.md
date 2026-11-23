@@ -23,6 +23,7 @@ rationale. Extension intentions remain explicitly distinct from current behavior
 - [Reminders](reminders.md)
 - [Routines & Chores](routines-chores.md)
 - [Time Announcements](time-announcements.md)
+- [To-dos](todos.md)
 - [Weather](weather.md)
 
 Stable invariant and acceptance IDs are traceability. [Verification](../../quality/verification.md) measures executed tests and coverage separately.

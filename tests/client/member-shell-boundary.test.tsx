@@ -29,11 +29,11 @@ afterEach(() => {
 describe("B1 shell boundary", () => {
   it("matches the reviewed complete family and admin route cohort", () => {
     expect(expected.batch).toBe("BFULL");
-    expect(expected.installedPluginIds).toHaveLength(9);
+    expect(expected.installedPluginIds).toHaveLength(10);
     expect(familyRoutes.map((route) => route.id)).toEqual(expected.familyRouteIds);
     expect(resolveHouseholdRoute("/admin")).toMatchObject({ kind: "admin", id: "overview" });
     expect(resolveHouseholdRoute("/admin/members")).toMatchObject({ kind: "admin", id: "members" });
-    for (const path of ["/calendar", "/chores", "/meals"]) {
+    for (const path of ["/calendar", "/chores", "/meals", "/todos"]) {
       expect(resolveHouseholdRoute(path).kind).toBe("family");
     }
     for (const path of ["/weather", "/backups"]) {

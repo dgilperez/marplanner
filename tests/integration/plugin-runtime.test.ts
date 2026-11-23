@@ -365,7 +365,7 @@ describe("real first-party plugin runtime assembly", () => {
     expect(new Set(runtime.adapters.map(({ manifest: value }) => value.runtimeAdapterKey))).toEqual(
       new Set(PLUGIN_IDS)
     );
-    expect(runtime.adapters).toHaveLength(9);
+    expect(runtime.adapters).toHaveLength(10);
     expect(runtime.adapters.map(({ manifest: value }) => value.id)).not.toContain(
       "external-calendar-sync"
     );

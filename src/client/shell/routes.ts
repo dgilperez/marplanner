@@ -3,6 +3,7 @@ import { CalendarView } from "@/calendar/CalendarView";
 import { ChoresBoard } from "@/chores/ChoresBoard";
 import { HomeSurface } from "@/home/HomeSurface";
 import { MealsBoard } from "@/meals/MealsBoard";
+import { TodosBoard } from "@/todos/TodosBoard";
 import type { PluginId } from "../../shared/plugins";
 
 /** The complete family inventory; unknown paths never substitute Home. */
@@ -18,6 +19,15 @@ export const familyRoutes = [
     pluginId: "meals-recipes" as PluginId,
     contributionGroup: "routes" as const,
     contributionId: "meals-recipes-api",
+  },
+  {
+    id: "todos",
+    path: "/todos",
+    label: "shell.nav.todos",
+    Component: TodosBoard,
+    pluginId: "todos" as PluginId,
+    contributionGroup: "routes" as const,
+    contributionId: "todos-api",
   },
 ] as const;
 

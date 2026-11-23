@@ -45,6 +45,7 @@ Accepted:
 | Meals & Recipes          | Optional content feature.                                            |
 | Reminders                | Optional notification feature.                                       |
 | Daily Messages           | Optional content feature.                                            |
+| To-dos                   | Optional household feature for the adults (`ADR-068`).               |
 
 ## Background Jobs / Scheduler
 

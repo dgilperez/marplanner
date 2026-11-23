@@ -109,7 +109,7 @@ function exactRowsWith(
 }
 
 function expectClosedRegistry(rows: readonly RegistryRow[]): void {
-  expect(rows).toHaveLength(9);
+  expect(rows).toHaveLength(10);
   expect(rows.map(({ pluginId }) => pluginId)).toEqual(PLUGIN_IDS);
   expect(rows.some(({ pluginId }) => FORBIDDEN_REGISTRY_IDS.has(pluginId))).toBe(false);
 }
@@ -231,7 +231,7 @@ describe("plugin lifecycle compatibility matrix", () => {
     fs.rmSync(dataDir, { recursive: true, force: true });
   });
 
-  it("fresh-empty: records immutable fresh lineage and exactly nine inactive rows without inference", async () => {
+  it("fresh-empty: records immutable fresh lineage and exactly ten inactive rows without inference", async () => {
     applyFixture("fresh-empty");
     runMigrations(MIGRATIONS_DIR, { now: () => FROZEN_NOW_MS });
 
@@ -299,7 +299,7 @@ describe("plugin lifecycle compatibility matrix", () => {
       expect(lineage()).toEqual(beforeLineage);
       expect(registryRows()).toEqual(expectedRows);
       expectClosedRegistry(registryRows());
-      expect(registryRows().filter(({ state }) => state === defaultState)).toHaveLength(8);
+      expect(registryRows().filter(({ state }) => state === defaultState)).toHaveLength(9);
       expect(beforeRows.find(({ pluginId }) => pluginId === "weather")?.state).not.toBe(
         defaultState
       );

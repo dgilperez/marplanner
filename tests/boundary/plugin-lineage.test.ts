@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getDb, resetDb } from "../../src/server/db/client";
 import { runMigrations } from "../../src/server/db/migrate";
+import { copyShippedMigrations } from "../helpers/baseline";
 
 const FROZEN_NOW_MS = Date.parse("2026-09-27T10:15:30.000Z");
 const FROZEN_NOW_ISO = "2026-09-27T10:15:30.000Z";
@@ -18,7 +19,7 @@ const PRE_SQUASH_LEDGER = [
   "0005_daily_briefing_schedule.sql",
 ];
 
-const PLUGIN_IDS = [
+const BASELINE_PLUGIN_IDS = [
   "daily-briefing",
   "printing",
   "weather",
@@ -175,7 +176,7 @@ describe("plugin lifecycle migration lineage", () => {
     });
   });
 
-  it("classifies an empty pre-run journal as fresh and seeds exactly nine inactive plugins", () => {
+  it("classifies an empty pre-run journal as fresh and the baseline seeds exactly nine inactive plugins", () => {
     writeLifecycleFixture(migrationsDir);
 
     runMigrations(migrationsDir, { now: () => FROZEN_NOW_MS });
@@ -189,7 +190,7 @@ describe("plugin lifecycle migration lineage", () => {
       },
     ]);
     expect(registryRows()).toEqual(
-      PLUGIN_IDS.map((pluginId) => ({
+      BASELINE_PLUGIN_IDS.map((pluginId) => ({
         pluginId,
         state: "inactive",
         updatedAt: FROZEN_NOW_ISO,
@@ -202,6 +203,62 @@ describe("plugin lifecycle migration lineage", () => {
       "plugin_migration_journal",
     ]);
     expectNoTemporaryContext();
+  });
+
+  it("0003_todos.sql adds todos inactive to an installed registry and keeps its state, operations and journal", () => {
+    writeLifecycleFixture(migrationsDir);
+    runMigrations(migrationsDir, { now: () => FROZEN_NOW_MS });
+    const db = getDb();
+    const laterIso = new Date(LATER_NOW_MS).toISOString();
+    db.prepare(
+      `UPDATE plugin_activation_registry
+       SET state = 'active', activated_at = ?, updated_at = ?
+       WHERE plugin_id = 'weather'`
+    ).run(laterIso, laterIso);
+    db.prepare(
+      `INSERT INTO plugin_lifecycle_operations
+       (operation_id, plugin_id, target_state, phase, started_at, updated_at)
+       VALUES ('operation-1', 'daily-briefing', 'active', 'running-migrations', ?, ?)`
+    ).run(laterIso, laterIso);
+    db.prepare(
+      `INSERT INTO plugin_migration_journal (plugin_id, migration_id, applied_at)
+       VALUES ('printing', 'baseline', ?)`
+    ).run(laterIso);
+    const operations = db.prepare("SELECT * FROM plugin_lifecycle_operations").all();
+    const journal = db.prepare("SELECT * FROM plugin_migration_journal").all();
+
+    copyShippedMigrations(migrationsDir);
+    runMigrations(migrationsDir, { now: () => LATER_NOW_MS });
+
+    expect(registryRows()).toEqual([
+      ...BASELINE_PLUGIN_IDS.map((pluginId) =>
+        pluginId === "weather"
+          ? { pluginId, state: "active", updatedAt: laterIso }
+          : { pluginId, state: "inactive", updatedAt: FROZEN_NOW_ISO }
+      ),
+      { pluginId: "todos", state: "inactive", updatedAt: FROZEN_NOW_ISO },
+    ]);
+    expect(
+      db.prepare("SELECT activated_at FROM plugin_activation_registry WHERE state = 'active'").all()
+    ).toEqual([{ activated_at: laterIso }]);
+    expect(db.prepare("SELECT * FROM plugin_lifecycle_operations").all()).toEqual(operations);
+    expect(db.prepare("SELECT * FROM plugin_migration_journal").all()).toEqual(journal);
+    expect(db.pragma("foreign_key_check")).toEqual([]);
+    expect(() =>
+      db
+        .prepare(
+          `INSERT INTO plugin_activation_registry
+           (plugin_id, state, activated_at, updated_at, error_code, error_message)
+           VALUES ('external-calendar-sync', 'inactive', NULL, ?, NULL, NULL)`
+        )
+        .run(FROZEN_NOW_ISO)
+    ).toThrow();
+    expect(() =>
+      db.prepare("DELETE FROM plugin_activation_registry WHERE plugin_id = 'printing'").run()
+    ).toThrow();
+
+    // A later boot re-checks the registry against the migrations the ledger now holds.
+    expect(() => runMigrations(migrationsDir, { now: () => LATER_NOW_MS })).not.toThrow();
   });
 
   it("enforces the closed registry, durable operation, and plugin journal invariants", () => {

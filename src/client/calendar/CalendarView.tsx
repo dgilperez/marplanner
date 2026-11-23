@@ -12,6 +12,7 @@ import {
 import { Temporal } from "temporal-polyfill";
 import { useTranslation } from "@/i18n";
 import { authFetch } from "@/lib/credential";
+import { formatCalendarDate } from "@/lib/household-date";
 import { useHouseholdSettings } from "@/lib/householdSettings";
 import { cn } from "@/lib/utils";
 import { AdminPanel } from "@/components/AdminPanel";
@@ -564,17 +565,13 @@ export function CalendarView() {
     mode === "month"
       ? buildCalendarDays(selectedPlainDate.year, selectedPlainDate.month - 1, weekStartDay)
       : buildWeekDays(currentDate, weekStartDay);
-  const formatCalendarDate = (date: string, options: Intl.DateTimeFormatOptions): string =>
-    new Intl.DateTimeFormat(locale, { ...options, timeZone: "UTC" }).format(
-      new Date(`${date}T12:00:00.000Z`)
-    );
   const periodTitle =
     mode === "month"
-      ? formatCalendarDate(currentDate, { month: "long", year: "numeric" })
-      : `${formatCalendarDate(visibleDates[0], {
+      ? formatCalendarDate(currentDate, locale, { month: "long", year: "numeric" })
+      : `${formatCalendarDate(visibleDates[0], locale, {
           month: "short",
           day: "numeric",
-        })} – ${formatCalendarDate(visibleDates[visibleDates.length - 1], {
+        })} – ${formatCalendarDate(visibleDates[visibleDates.length - 1], locale, {
           month: "short",
           day: "numeric",
           year: "numeric",

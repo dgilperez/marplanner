@@ -132,7 +132,7 @@ const SETTINGS_BODY = {
   weather: { lat: null, lon: null },
 };
 
-const PLUGIN_ADMIN_IDS: Record<PluginId, string> = {
+const PLUGIN_ADMIN_IDS: Record<PluginId, string | null> = {
   "daily-briefing": "daily-briefing",
   printing: "printing",
   weather: "weather",
@@ -142,17 +142,18 @@ const PLUGIN_ADMIN_IDS: Record<PluginId, string> = {
   "meals-recipes": "meals",
   reminders: "reminders",
   "daily-messages": "daily-messages",
+  todos: null,
 };
 
 function pluginCatalog(): PluginCatalogEntry[] {
-  return (Object.keys(PLUGIN_ADMIN_IDS) as PluginId[]).map((id) => ({
+  return (Object.entries(PLUGIN_ADMIN_IDS) as [PluginId, string | null][]).map(([id, adminId]) => ({
     id,
     label: `plugins.${id}.label`,
     description: `plugins.${id}.description`,
     trustTier: "first-party",
     contributions: {
       routes: [],
-      admin: [PLUGIN_ADMIN_IDS[id]],
+      admin: adminId === null ? [] : [adminId],
       settings: [],
       widgets: [],
       services: [],

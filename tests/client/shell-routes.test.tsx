@@ -15,6 +15,7 @@ const PLUGIN_IDS: readonly PluginId[] = [
   "meals-recipes",
   "reminders",
   "daily-messages",
+  "todos",
 ];
 
 function activePlugin(id: PluginId): PluginCatalogEntry {
@@ -96,6 +97,14 @@ function activePlugin(id: PluginId): PluginCatalogEntry {
       services: [],
       jobs: [],
     },
+    todos: {
+      routes: ["todos-api"],
+      admin: [],
+      settings: [],
+      widgets: ["agenda-todos"],
+      services: [],
+      jobs: [],
+    },
   };
   return {
     id,
@@ -142,7 +151,8 @@ describe("household shell routes", () => {
         if (
           url.startsWith("/api/calendar/events") ||
           url.startsWith("/api/chores/board") ||
-          url.startsWith("/api/menu")
+          url.startsWith("/api/menu") ||
+          url.startsWith("/api/todos")
         ) {
           return Response.json([]);
         }
@@ -158,8 +168,8 @@ describe("household shell routes", () => {
     window.history.replaceState({}, "", "/");
   });
 
-  it.each(["/", "/calendar", "/chores", "/meals"])(
-    "keeps all four named family links at %s",
+  it.each(["/", "/calendar", "/chores", "/meals", "/todos"])(
+    "keeps all five named family links at %s",
     async (path) => {
       window.history.replaceState({}, "", path);
       render(<Shell />);
@@ -174,6 +184,7 @@ describe("household shell routes", () => {
         ["Calendar", "/calendar"],
         ["Tasks", "/chores"],
         ["Meals", "/meals"],
+        ["To-dos", "/todos"],
       ]);
     }
   );
@@ -198,6 +209,7 @@ describe("household shell routes", () => {
         "/family/planner/calendar",
         "/family/planner/chores",
         "/family/planner/meals",
+        "/family/planner/todos",
       ]);
       fireEvent.click(within(nav).getByRole("link", { name: "Home" }));
       expect(window.location.pathname).toBe("/family/planner/");
@@ -244,7 +256,7 @@ describe("household shell routes", () => {
       within(nav)
         .getAllByRole("link")
         .map((link) => link.textContent)
-    ).toEqual(["Inicio", "Calendario", "Tareas", "Comidas"]);
+    ).toEqual(["Inicio", "Calendario", "Tareas", "Comidas", "Pendientes"]);
     expect(screen.getByRole("heading", { name: "Página no encontrada" })).toBeInTheDocument();
   });
 
@@ -262,7 +274,7 @@ describe("household shell routes", () => {
     }
   );
 
-  it.each(["/", "/calendar", "/chores", "/meals"])(
+  it.each(["/", "/calendar", "/chores", "/meals", "/todos"])(
     "does not mount an admin gate or admin content at family route %s",
     async (path) => {
       window.history.replaceState({}, "", path);
@@ -282,6 +294,7 @@ describe("closed route resolver", () => {
     ["/calendar", "calendar"],
     ["/chores", "chores"],
     ["/meals", "meals"],
+    ["/todos", "todos"],
   ])("resolves family destination %s", (path, id) => {
     expect(resolveHouseholdRoute(path)).toMatchObject({
       kind: "family",

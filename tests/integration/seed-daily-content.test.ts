@@ -46,7 +46,7 @@ describe("daily content demo seed integration", () => {
       db
         .prepare("SELECT count(*) AS count FROM plugin_activation_registry WHERE state = 'active'")
         .get()
-    ).toEqual({ count: 9 });
+    ).toEqual({ count: 10 });
     expect(db.prepare("SELECT status FROM seed_profile_state").get()).toEqual({
       status: "complete",
     });
@@ -69,7 +69,7 @@ describe("daily content demo seed integration", () => {
     await runSeedProfile(request);
     const lifecycle = createServerPluginLifecycle();
     const catalog = await lifecycle.listCatalog();
-    expect(catalog).toHaveLength(9);
+    expect(catalog).toHaveLength(10);
     expect(catalog.every((plugin) => plugin.state === "active" && plugin.operation === null)).toBe(
       true
     );

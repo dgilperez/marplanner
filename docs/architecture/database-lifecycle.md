@@ -122,3 +122,27 @@ Restore reports such a backup as `unsupported_lineage`. `installation_lineage.ki
   default; one of `confetti`, `stars`, `videogames`, `soccer`, `fairytale`, `custom`) and
   `celebration_emojis` (a JSON array of 1–6 items when the preset is `custom`, NULL otherwise),
   each with a CHECK. Existing members read as `confetti`.
+- `0003_todos.sql` (ADR-068): creates `todo_lists` and `todo_items` for the to-dos plugin, and
+  rebuilds `plugin_activation_registry` so its `plugin_id` CHECK accepts `todos`, keeping every
+  existing row. It then inserts the `todos` row as `inactive`. The runner expects nine registry
+  rows before this migration is in the ledger and ten after.
+
+The runner identifies a migration by its file name, not by its number. On each start it sorts the
+file names in `drizzle/`, refuses a ledger that names a file the build does not ship
+(`Unsupported migration history.`) and applies, in name order, every file the ledger lacks. It does
+not check that a pending file sorts after the ones already applied. A database with
+`0003_todos.sql` in its ledger therefore does not start on a build without that file; the way back
+is in [operations](../operations.md#pre-migration-recovery-snapshots).
+
+`0003_todos.sql` was written in a fork. If the upstream project ships a different file with the
+same number, a build that merges both has two `0003_*.sql` files and the runner accepts that. A
+fresh database applies them in name order, and a database that already has `0003_todos.sql`
+applies the other one after it, so the two reach their schema by different routes. That is safe
+only while the two files touch different tables. It stops being safe if the other file also
+rebuilds `plugin_activation_registry`: a rebuild whose CHECK does not list `todos` fails on the
+existing `todos` row, the batch rolls back and the server does not start. A second file that
+registers a plugin must also be listed in `PLUGIN_REGISTRATION_MIGRATIONS`
+(`src/server/db/migrate.ts`), or the registry count check fails with
+`Incomplete plugin lifecycle migration history.` Whoever merges resolves this by renumbering the
+migration that has not reached an installed database and making `schema.ts` agree, which
+`tests/integration/database-baseline.test.ts` enforces.

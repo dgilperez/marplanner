@@ -10,6 +10,7 @@ export const PLUGIN_IDS = Object.freeze([
   "meals-recipes",
   "reminders",
   "daily-messages",
+  "todos",
 ] as const);
 
 export type PluginId = (typeof PLUGIN_IDS)[number];

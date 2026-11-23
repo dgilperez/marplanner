@@ -57,6 +57,7 @@ export const TAG_CARDS = {
   },
   reminders: { label: "Reminders", blurb: "Scheduled reminders, assignments and live emissions." },
   "daily-messages": { label: "Daily messages", blurb: "A message for each member, each day." },
+  todos: { label: "To-dos", blurb: "Household to-dos for the adults, grouped in lists." },
   "daily-briefing": {
     label: "Daily briefing",
     blurb: "Block configuration, generation, preview and printing.",

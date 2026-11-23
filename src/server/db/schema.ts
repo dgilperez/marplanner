@@ -656,6 +656,51 @@ export const dailyMessages = sqliteTable(
   })
 );
 
+/** To-do lists — named groups of household to-dos. PLUGIN table (todos, ADR-068). */
+export const todoLists = sqliteTable(
+  "todo_lists",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => ({
+    nameCheck: check("todo_lists_name_check", sql`length(trim(${table.name})) > 0`),
+    uniqueName: unique("todo_lists_unique_name").on(table.name),
+  })
+);
+
+/** To-do items. PLUGIN table (todos, ADR-068). `assignee_member_id` is a plain column with no
+ * `.references`: a plugin never holds a foreign key to a core table (ADR-039 §3, ADR-054). The
+ * foreign key to `todo_lists` stays inside the plugin's own namespace.
+ */
+export const todoItems = sqliteTable(
+  "todo_items",
+  {
+    id: text("id").primaryKey(),
+    listId: text("list_id")
+      .notNull()
+      .references(() => todoLists.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    notes: text("notes"),
+    dueDate: text("due_date"),
+    assigneeMemberId: text("assignee_member_id"),
+    completedAt: integer("completed_at"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => ({
+    titleCheck: check("todo_items_title_check", sql`length(trim(${table.title})) > 0`),
+    dueDateCheck: check(
+      "todo_items_due_date_shape_check",
+      sql`${table.dueDate} IS NULL OR ${table.dueDate} GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'`
+    ),
+    listIdIdx: index("todo_items_list_id_idx").on(table.listId),
+    dueDateIdx: index("todo_items_due_date_idx").on(table.dueDate),
+  })
+);
+
 /** Daily briefing — one current row per (member, date); id stable across regeneration (INV-02).
  * PLUGIN table (ADR-029) — `member_id` is a plain column, NO `.references` (ADR-039 §3 / INV-02).
  * The render layer's columns are:
@@ -1033,7 +1078,7 @@ export const pluginActivationRegistry = sqliteTable(
   (table) => ({
     pluginIdCheck: check(
       "plugin_activation_registry_plugin_id_check",
-      sql`${table.pluginId} IN ('daily-briefing', 'printing', 'weather', 'time-announcements', 'backups', 'network-devices', 'meals-recipes', 'reminders', 'daily-messages')`
+      sql`${table.pluginId} IN ('daily-briefing', 'printing', 'weather', 'time-announcements', 'backups', 'network-devices', 'meals-recipes', 'reminders', 'daily-messages', 'todos')`
     ),
     stateCheck: check(
       "plugin_activation_registry_state_check",

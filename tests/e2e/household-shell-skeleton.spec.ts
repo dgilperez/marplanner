@@ -16,7 +16,7 @@ test("household shell: all family routes, removed briefing, history and locked a
   await expect(page.getByTestId("home-surface")).toBeVisible();
 
   const nav = page.getByRole("navigation");
-  await expect(nav.getByRole("link")).toHaveCount(4);
+  await expect(nav.getByRole("link")).toHaveCount(5);
   await page.screenshot({ path: testInfo.outputPath("household-home.png"), fullPage: true });
   // A browser-local marker disappears on document reload; navigation must retain the app.
   await page.evaluate(() => document.documentElement.setAttribute("data-shell-probe", "mounted"));
@@ -38,6 +38,7 @@ test("household shell: all family routes, removed briefing, history and locked a
       }),
     },
     { href: "/meals", target: page.getByTestId("meals-board") },
+    { href: "/todos", target: page.getByTestId("todos-board") },
     { href: "/", target: page.getByTestId("home-surface") },
   ]) {
     await nav.locator(`a[href="${destination.href}"]`).click();

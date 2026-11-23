@@ -17,6 +17,7 @@ const IDS = [
   "meals-recipes",
   "reminders",
   "daily-messages",
+  "todos",
 ] as const;
 
 const LABEL_KEYS: Record<PluginId, string> = {
@@ -29,6 +30,7 @@ const LABEL_KEYS: Record<PluginId, string> = {
   "meals-recipes": "plugins.mealsRecipes.label",
   reminders: "plugins.reminders.label",
   "daily-messages": "plugins.dailyMessages.label",
+  todos: "plugins.todos.label",
 };
 
 function entry(id: PluginId, state: PluginState = "inactive"): PluginCatalogEntry {
@@ -94,7 +96,7 @@ describe("Plugin Management", () => {
     cleanup();
   });
 
-  it("renders exactly nine localized rows in manifest order with safe declarative metadata", async () => {
+  it("renders exactly ten localized rows in manifest order with safe declarative metadata", async () => {
     renderCatalog();
 
     const rows = await screen.findAllByTestId(/^plugin-row-/);
@@ -104,6 +106,7 @@ describe("Plugin Management", () => {
     expect(rows[0]).toHaveTextContent("Inactive");
     expect(rows[0]).toHaveTextContent("Routes");
     expect(rows[0]).toHaveTextContent("Requirements");
+    expect(screen.getByTestId("plugin-row-todos")).toHaveTextContent("To-dos");
 
     const weather = screen.getByTestId("plugin-row-weather");
     expect(weather).toHaveTextContent("Latitude");
@@ -246,6 +249,8 @@ describe("Plugin Management", () => {
     for (const key of pluginKeys) {
       expect(messages.es[key], key).toBeTruthy();
     }
+    // The kiosk already calls the children's chores "Tareas".
+    expect(messages.es["plugins.todos.label"]).toBe("Pendientes");
   });
 
   it("uses a narrow-safe stacked structure with visible actions and no table overflow", async () => {
@@ -254,7 +259,7 @@ describe("Plugin Management", () => {
     expect(catalog).toHaveClass("grid");
     expect(catalog.querySelector("table")).toBeNull();
     expect(catalog.className).toContain("min-w-0");
-    expect(screen.getAllByRole("button", { pressed: false })).toHaveLength(9);
+    expect(screen.getAllByRole("button", { pressed: false })).toHaveLength(10);
   });
 
   it("draws each plugin's state as a toggle and greys out an inactive card", async () => {

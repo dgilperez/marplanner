@@ -19,6 +19,7 @@ const PLUGIN_IDS: readonly PluginId[] = [
   "meals-recipes",
   "reminders",
   "daily-messages",
+  "todos",
 ];
 
 function activePlugin(id: PluginId): PluginCatalogEntry {
@@ -97,6 +98,14 @@ function activePlugin(id: PluginId): PluginCatalogEntry {
       admin: ["daily-messages"],
       settings: [],
       widgets: [],
+      services: [],
+      jobs: [],
+    },
+    todos: {
+      routes: ["todos-api"],
+      admin: [],
+      settings: [],
+      widgets: ["agenda-todos"],
       services: [],
       jobs: [],
     },

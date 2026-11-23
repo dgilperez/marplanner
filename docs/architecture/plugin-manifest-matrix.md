@@ -5,7 +5,7 @@ contributions that exist in the current application. The catalog IDs below are s
 each maps to an existing owner symbol, destination, or block type. Scheduler job IDs are the exact
 runtime IDs registered with the scheduler, not catalog aliases.
 
-The ordered catalog cohort is unchanged:
+The ordered catalog cohort:
 
 1. `daily-briefing`
 2. `printing`
@@ -16,8 +16,9 @@ The ordered catalog cohort is unchanged:
 7. `meals-recipes`
 8. `reminders`
 9. `daily-messages`
+10. `todos`
 
-`external-calendar-sync` remains excluded. The eight ADR-029 core candidates remain host-owned and
+`todos` joined the cohort with ADR-068. `external-calendar-sync` remains excluded. The eight ADR-029 core candidates remain host-owned and
 must never receive manifests.
 
 ## Contribution inventory
@@ -62,6 +63,7 @@ Runtime scheduler IDs use the following stable kebab-case public job IDs:
 | `meals-recipes`      | `meals-recipes-api`      | `meals`              | —                         | `today-meals`       | —                                                        | `meals`                  | —                                                                                                                      |
 | `reminders`          | `reminders-api`          | `reminders`          | —                         | —                   | —                                                        | `reminders`              | —                                                                                                                      |
 | `daily-messages`     | `daily-messages-api`     | `daily-messages`     | —                         | —                   | —                                                        | `message`                | —                                                                                                                      |
+| `todos`              | `todos-api`              | —                    | —                         | `agenda-todos`      | —                                                        | —                        | —                                                                                                                      |
 
 ### Contribution sources
 
@@ -76,6 +78,7 @@ Runtime scheduler IDs use the following stable kebab-case public job IDs:
 | `meals-recipes`      | Route owner: `src/server/routes/meals.ts` (`mealsRoutes`). Family and Admin destinations: `src/client/shell/routes.ts` and `src/client/admin/AdminRoutes.tsx`. Visible home widget: `src/client/home/HomeSurface.tsx` (`TodayMeals`). Daily Briefing content source: `src/server/modules/daily-briefing/blocks/meals.ts` (`mealsBlock.type`).                                                                                                                                         |
 | `reminders`          | Route owner: `src/server/routes/reminders.ts` (`remindersRoutes`). Admin destination: `src/client/shell/routes.ts` and `src/client/admin/AdminRoutes.tsx`. Daily Briefing content source: `src/server/modules/daily-briefing/blocks/reminders.ts` (`remindersBlock.type`). Reminders own no client widget and no scheduler job.                                                                                                                                                       |
 | `daily-messages`     | Route owner: `src/server/routes/daily-messages.ts` (`dailyMessagesRoutes`). Admin destination: `src/client/shell/routes.ts` and `src/client/admin/AdminRoutes.tsx`. Daily Briefing content source: `src/server/modules/daily-briefing/blocks/message.ts` (`messageBlock.type`). Daily Messages own no client widget and no scheduler job.                                                                                                                                             |
+| `todos`              | Route owner: `src/server/routes/todos.ts` (`todosRoutes`). Module: `src/server/modules/todos/index.ts`. Family destination: `src/client/shell/routes.ts` (`/todos`, `src/client/todos/TodosBoard.tsx`), gated by `todos-api`. Visible home widget: the to-dos group that `src/client/home/TodayAgenda.tsx` hosts (`src/client/todos/AgendaTodos.tsx`). To-dos own no Admin destination, content source or scheduler job.                                                              |
 
 ## Core requirements
 
@@ -93,6 +96,7 @@ Fastify process and the React/i18n rendering substrate are not repeated on every
 | `meals-recipes`      | `members`, `app-settings`                                                     | `src/server/modules/meals/index.ts` owns member-linked data and reads household timezone plus `weekStartDay`.                                                                                              |
 | `reminders`          | `members`, `calendar-local`, `app-settings`                                   | `src/server/modules/reminders/index.ts` validates members, evaluates calendar-gated rules, and derives weekdays using household timezone.                                                                  |
 | `daily-messages`     | `members`                                                                     | `src/server/modules/daily-messages/index.ts` validates and resolves member ownership.                                                                                                                      |
+| `todos`              | `members`                                                                     | `src/server/modules/todos/index.ts` checks that a new assignee is an active parent.                                                                                                                        |
 
 ## Settings descriptors
 

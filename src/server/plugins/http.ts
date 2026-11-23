@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { PLUGIN_UNAVAILABLE_RESPONSE } from "../../shared/index.js";
 import type { PluginId } from "../../shared/plugins.js";
 import { getDb } from "../db/client.js";
 import type { PluginLifecycle } from "./lifecycle.js";
@@ -8,11 +9,6 @@ import { createServerPluginRuntime } from "./runtime.js";
 import { SqlitePluginLifecycleStore } from "./store.js";
 
 export type PluginRouteRegistrar = (app: FastifyInstance) => Promise<void>;
-
-export const PLUGIN_UNAVAILABLE_RESPONSE = Object.freeze({
-  code: "plugin_unavailable" as const,
-  message: "This plugin is unavailable." as const,
-});
 
 const UNMIGRATED_PLUGIN_LIFECYCLE: PluginLifecycle = {
   listCatalog: async () => Promise.reject(new Error("Plugin lifecycle is not initialized")),

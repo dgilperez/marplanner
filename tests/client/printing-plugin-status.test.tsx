@@ -19,6 +19,7 @@ const IDS = [
   "meals-recipes",
   "reminders",
   "daily-messages",
+  "todos",
 ] as const;
 
 function entry(id: PluginId, state: PluginState): PluginCatalogEntry {

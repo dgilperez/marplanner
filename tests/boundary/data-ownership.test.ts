@@ -35,6 +35,7 @@ const schemaSource = fs.readFileSync(schemaPath, "utf8");
 // listSourceFiles(moduleDir) throws ENOENT before the module has real files; see the
 // commit body) are all added below, per their own PLUGIN_MODULES entries. `weather`,
 // PLUGIN-SYSTEM's sixth zone, has no owned table and is intentionally absent from this roster.
+// `todos` (ninth eslint zone, ADR-068) owns `todo_lists` and `todo_items`.
 const PLUGIN_MODULES = [
   "reminders",
   "daily-messages",
@@ -43,6 +44,7 @@ const PLUGIN_MODULES = [
   "network-devices",
   "daily-briefing",
   "printing",
+  "todos",
 ] as const;
 type PluginModule = (typeof PLUGIN_MODULES)[number];
 
@@ -65,6 +67,7 @@ const OWN_TABLES: Record<PluginModule, string[]> = {
   // added `printer_capabilities` (FR-021/the capability marker) —
   // still printing's own table, just a third one.
   printing: ["print_jobs", "print_records", "printer_capabilities"],
+  todos: ["todo_lists", "todo_items"],
 };
 
 const ALL_TABLE_NAMES = Array.from(schemaSource.matchAll(/sqliteTable\(\s*["']([a-z_]+)["']/g)).map(
@@ -132,7 +135,7 @@ function importSpecifiers(fileSource: string): string[] {
 }
 
 describe("data-ownership — table inventory (guards the forbidden-set derivation itself)", () => {
-  it("schema.ts declares exactly 37 sqliteTable definitions", () => {
+  it("schema.ts declares exactly 39 sqliteTable definitions", () => {
     // added `client_log` (core Tier-0, not plugin-namespaced) — 19 -> 20.
     // added `time_announcements` (PLUGIN-owned — the fifth eslint import-boundary
     // zone, src/server/modules/time-announcements — NOT core Tier-0 like client_log) — 20 -> 21.
@@ -150,25 +153,27 @@ describe("data-ownership — table inventory (guards the forbidden-set derivatio
     // calendar_external_sources — 29 -> 30; adds the core seed_profile_state marker
     // table — 30 -> 31; adds calendar_external_event_meta and
     // calendar_highlight_rules — 31 -> 33; adds four core-owned lifecycle
-    // tables — 33 -> 37.
-    expect(ALL_TABLE_NAMES).toHaveLength(37);
+    // tables — 33 -> 37; adds the todos-owned todo_lists and todo_items — 37 -> 39.
+    expect(ALL_TABLE_NAMES).toHaveLength(39);
   });
 
   it("per-plugin forbidden-table counts (all tables minus the plugin's own)", () => {
-    expect(forbiddenTablesFor("printing")).toHaveLength(34);
-    expect(forbiddenTablesFor("reminders")).toHaveLength(35);
-    expect(forbiddenTablesFor("daily-messages")).toHaveLength(36);
-    expect(forbiddenTablesFor("meals")).toHaveLength(34);
-    expect(forbiddenTablesFor("time-announcements")).toHaveLength(36);
-    expect(forbiddenTablesFor("network-devices")).toHaveLength(36);
-    expect(forbiddenTablesFor("daily-briefing")).toHaveLength(31);
+    expect(forbiddenTablesFor("printing")).toHaveLength(36);
+    expect(forbiddenTablesFor("reminders")).toHaveLength(37);
+    expect(forbiddenTablesFor("daily-messages")).toHaveLength(38);
+    expect(forbiddenTablesFor("meals")).toHaveLength(36);
+    expect(forbiddenTablesFor("time-announcements")).toHaveLength(38);
+    expect(forbiddenTablesFor("network-devices")).toHaveLength(38);
+    expect(forbiddenTablesFor("daily-briefing")).toHaveLength(33);
+    expect(forbiddenTablesFor("todos")).toHaveLength(37);
   });
 });
 
 describe("data-ownership — schema.ts member-FK counts (source-level, INV-02)", () => {
-  it("plugin tables (reminder_assignment, daily_messages) have 0 member FKs", () => {
+  it("plugin tables (reminder_assignment, daily_messages, todo_items) have 0 member FKs", () => {
     expect(memberFkCount("reminderAssignments")).toBe(0);
     expect(memberFkCount("dailyMessages")).toBe(0);
+    expect(memberFkCount("todoItems")).toBe(0);
   });
 
   it("the 3 core tables keep their member FK (calendar_assignments, routine_assignments, chore_completions)", () => {

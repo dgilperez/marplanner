@@ -637,6 +637,15 @@ export default [
               message:
                 "Plugin modules must reach core/host only through ../../host-api (ADR-039 §2b′).",
             },
+            // Ninth plugin-module zone — todos (ADR-068). It reads members only through the
+            // host-api barrel, where the adults-only assignee rule is composed.
+            {
+              target: "src/server/modules/todos",
+              from: "src/server",
+              except: ["modules/todos", "host-api"],
+              message:
+                "Plugin modules must reach core/host only through ../../host-api (ADR-039 §2b′).",
+            },
             // src/shared contains shared household time-zone calculations
             // used by both server and client. It must stay pure (no I/O, no
             // clock, no dependencies) so both sides can safely import it. A shared → server or

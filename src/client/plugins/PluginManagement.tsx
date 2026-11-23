@@ -40,6 +40,10 @@ const PLUGIN_COPY: Record<PluginId, { label: MessageKey; description: MessageKey
     label: "plugins.dailyMessages.label",
     description: "plugins.dailyMessages.description",
   },
+  todos: {
+    label: "plugins.todos.label",
+    description: "plugins.todos.description",
+  },
 };
 
 const GROUP_COPY: Record<keyof PluginContributionSummary, MessageKey> = {

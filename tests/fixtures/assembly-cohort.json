@@ -12,7 +12,8 @@
     "network-devices",
     "meals-recipes",
     "reminders",
-    "daily-messages"
+    "daily-messages",
+    "todos"
   ],
   "coreRoutes": [
     {
@@ -274,6 +275,18 @@
       "path": "/api/time-announcements/{id}"
     },
     {
+      "method": "DELETE",
+      "path": "/api/todos/lists/{id}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/todos/{id}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/todos/{id}/completion"
+    },
+    {
       "method": "GET",
       "path": "/api/backups"
     },
@@ -383,6 +396,18 @@
     },
     {
       "method": "GET",
+      "path": "/api/todos"
+    },
+    {
+      "method": "GET",
+      "path": "/api/todos/lists"
+    },
+    {
+      "method": "GET",
+      "path": "/api/todos/{id}"
+    },
+    {
+      "method": "GET",
       "path": "/api/weather"
     },
     {
@@ -408,6 +433,14 @@
     {
       "method": "PATCH",
       "path": "/api/time-announcements/{id}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/todos/lists/{id}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/todos/{id}"
     },
     {
       "method": "POST",
@@ -494,6 +527,18 @@
       "path": "/api/time-announcements"
     },
     {
+      "method": "POST",
+      "path": "/api/todos"
+    },
+    {
+      "method": "POST",
+      "path": "/api/todos/lists"
+    },
+    {
+      "method": "POST",
+      "path": "/api/todos/{id}/completion"
+    },
+    {
       "method": "PUT",
       "path": "/api/daily-briefing/block-order"
     },
@@ -532,7 +577,7 @@
     "network-devices.poll",
     "calendar.external-sources.poll"
   ],
-  "familyRouteIds": ["home", "calendar", "chores", "meals"],
+  "familyRouteIds": ["home", "calendar", "chores", "meals", "todos"],
   "adminRouteIds": [
     "calendar",
     "overview",
@@ -1581,9 +1626,9 @@
             "daily-messages-window (US2 window list + delete + missing-vs-empty) delete removes an existing message (204), leaving it absent on subsequent reads"
           ],
           "tests/boundary/data-ownership.test.ts": [
-            "data-ownership — table inventory (guards the forbidden-set derivation itself) schema.ts declares exactly 37 sqliteTable definitions",
+            "data-ownership — table inventory (guards the forbidden-set derivation itself) schema.ts declares exactly 39 sqliteTable definitions",
             "data-ownership — table inventory (guards the forbidden-set derivation itself) per-plugin forbidden-table counts (all tables minus the plugin's own)",
-            "data-ownership — schema.ts member-FK counts (source-level, INV-02) plugin tables (reminder_assignment, daily_messages) have 0 member FKs",
+            "data-ownership — schema.ts member-FK counts (source-level, INV-02) plugin tables (reminder_assignment, daily_messages, todo_items) have 0 member FKs",
             "data-ownership — schema.ts member-FK counts (source-level, INV-02) the 3 core tables keep their member FK (calendar_assignments, routine_assignments, chore_completions)",
             "data-ownership — schema.ts member-FK counts (source-level, INV-02) exactly 3 `references(() => members.id)` occurrences exist in schema.ts",
             "data-ownership — 0 raw SQL touching a NON-OWN table per plugin module root (§3) reminders: no raw SQL read or write reaches a core or peer-plugin table",
@@ -1593,6 +1638,7 @@
             "data-ownership — 0 raw SQL touching a NON-OWN table per plugin module root (§3) network-devices: no raw SQL read or write reaches a core or peer-plugin table",
             "data-ownership — 0 raw SQL touching a NON-OWN table per plugin module root (§3) daily-briefing: no raw SQL read or write reaches a core or peer-plugin table",
             "data-ownership — 0 raw SQL touching a NON-OWN table per plugin module root (§3) printing: no raw SQL read or write reaches a core or peer-plugin table",
+            "data-ownership — 0 raw SQL touching a NON-OWN table per plugin module root (§3) todos: no raw SQL read or write reaches a core or peer-plugin table",
             "data-ownership — SQL matcher catches quoted/qualified identifiers (Codex P2 regression, PR #524) a double-quoted reference to a forbidden table is caught",
             "data-ownership — SQL matcher catches quoted/qualified identifiers (Codex P2 regression, PR #524) a backtick-quoted reference to a forbidden table is caught",
             "data-ownership — SQL matcher catches quoted/qualified identifiers (Codex P2 regression, PR #524) a bracketed reference to a forbidden table is caught",
@@ -1605,7 +1651,8 @@
             "data-ownership — 0 forbidden imports per plugin module root (INV-07/FR-002) time-announcements: every relative import resolves into its own subtree, the host-API barrel, or src/shared",
             "data-ownership — 0 forbidden imports per plugin module root (INV-07/FR-002) network-devices: every relative import resolves into its own subtree, the host-API barrel, or src/shared",
             "data-ownership — 0 forbidden imports per plugin module root (INV-07/FR-002) daily-briefing: every relative import resolves into its own subtree, the host-API barrel, or src/shared",
-            "data-ownership — 0 forbidden imports per plugin module root (INV-07/FR-002) printing: every relative import resolves into its own subtree, the host-API barrel, or src/shared"
+            "data-ownership — 0 forbidden imports per plugin module root (INV-07/FR-002) printing: every relative import resolves into its own subtree, the host-API barrel, or src/shared",
+            "data-ownership — 0 forbidden imports per plugin module root (INV-07/FR-002) todos: every relative import resolves into its own subtree, the host-API barrel, or src/shared"
           ],
           "tests/boundary/database-baseline.test.ts": [
             "database lifecycle current baseline keeps the reviewed sentinel, both tables, and canonical day-period rows in SQL",
@@ -2392,7 +2439,8 @@
           "tests/boundary/plugin-lineage.test.ts": [
             "plugin lifecycle migration lineage temporary migration context handoff is visible to migration SQL on the same connection and is removed after commit",
             "plugin lifecycle migration lineage temporary migration context handoff keeps context-derived writes and migration bookkeeping inside the atomic rollback",
-            "plugin lifecycle migration lineage classifies an empty pre-run journal as fresh and seeds exactly nine inactive plugins",
+            "plugin lifecycle migration lineage classifies an empty pre-run journal as fresh and the baseline seeds exactly nine inactive plugins",
+            "plugin lifecycle migration lineage 0003_todos.sql adds todos inactive to an installed registry and keeps its state, operations and journal",
             "plugin lifecycle migration lineage enforces the closed registry, durable operation, and plugin journal invariants",
             "plugin lifecycle migration lineage rejects non-canonical timestamps in every lifecycle timestamp column",
             "plugin lifecycle migration lineage fails closed before any snapshot or mutation for unsupported unknown-only history",
@@ -4271,7 +4319,7 @@
             "active plugin contribution projection refreshes the catalog after a contained browser fault and withdraws only that plugin"
           ],
           "tests/client/plugin-management.test.tsx": [
-            "Plugin Management renders exactly nine localized rows in manifest order with safe declarative metadata",
+            "Plugin Management renders exactly ten localized rows in manifest order with safe declarative metadata",
             "Plugin Management uses only the authenticated session and never sends client PIN state",
             "Plugin Management keeps canonical state visible while busy and disables only that plugin",
             "Plugin Management applies the 409 plugin snapshot, announces a safe failure, and preserves control focus",
@@ -4668,10 +4716,11 @@
             "timeZoneGroups replaces underscores in the label of an unlisted zone"
           ],
           "tests/client/shell-routes.test.tsx": [
-            "household shell routes keeps all four named family links at /",
-            "household shell routes keeps all four named family links at /calendar",
-            "household shell routes keeps all four named family links at /chores",
-            "household shell routes keeps all four named family links at /meals",
+            "household shell routes keeps all five named family links at /",
+            "household shell routes keeps all five named family links at /calendar",
+            "household shell routes keeps all five named family links at /chores",
+            "household shell routes keeps all five named family links at /meals",
+            "household shell routes keeps all five named family links at /todos",
             "household shell routes keeps nested runtime mount links and navigation on the requested family route",
             "household shell routes navigates from Home to the real Calendar surface without reloading the chrome",
             "household shell routes renders a recoverable not-found outcome at /daily-briefing",
@@ -4687,10 +4736,12 @@
             "household shell routes does not mount an admin gate or admin content at family route /calendar",
             "household shell routes does not mount an admin gate or admin content at family route /chores",
             "household shell routes does not mount an admin gate or admin content at family route /meals",
+            "household shell routes does not mount an admin gate or admin content at family route /todos",
             "closed route resolver resolves family destination /",
             "closed route resolver resolves family destination /calendar",
             "closed route resolver resolves family destination /chores",
             "closed route resolver resolves family destination /meals",
+            "closed route resolver resolves family destination /todos",
             "closed route resolver recognizes protected destination /admin without unlock state",
             "closed route resolver recognizes protected destination /admin/members without unlock state",
             "closed route resolver recognizes protected destination /admin/routines without unlock state",
@@ -5685,7 +5736,7 @@
             "Backups plugin boundary catalogs only optional Backups contributions and never presents host safety controls as disabled services"
           ],
           "tests/integration/plugin-compatibility.test.ts": [
-            "plugin lifecycle compatibility matrix fresh-empty: records immutable fresh lineage and exactly nine inactive rows without inference",
+            "plugin lifecycle compatibility matrix fresh-empty: records immutable fresh lineage and exactly ten inactive rows without inference",
             "plugin lifecycle compatibility matrix unsupported-history: fails closed before writing any lifecycle metadata",
             "plugin lifecycle compatibility matrix migrated-fresh: restart preserves immutable lineage, explicit registry state, journals, settings, and owned data",
             "plugin lifecycle compatibility matrix restored-migrated: a live app reconciles restored canonical state and durable work before first traffic",
@@ -6063,6 +6114,266 @@
             "layoutPhonics puts a dot under single letters and a dash under digraphs, spanning their cells",
             "layoutPhonics prints tricky words without marks",
             "phonics through the real render bridge renders without failed or unrendered blocks"
+          ],
+          "tests/boundary/todos-access.test.ts": [
+            "todos access — device credential GET /api/todos/lists without a credential -> 401",
+            "todos access — device credential POST /api/todos/lists without a credential -> 401",
+            "todos access — device credential PATCH /api/todos/lists/any without a credential -> 401",
+            "todos access — device credential DELETE /api/todos/lists/any without a credential -> 401",
+            "todos access — device credential GET /api/todos without a credential -> 401",
+            "todos access — device credential POST /api/todos without a credential -> 401",
+            "todos access — device credential GET /api/todos/any without a credential -> 401",
+            "todos access — device credential PATCH /api/todos/any without a credential -> 401",
+            "todos access — device credential DELETE /api/todos/any without a credential -> 401",
+            "todos access — device credential POST /api/todos/any/completion without a credential -> 401",
+            "todos access — device credential DELETE /api/todos/any/completion without a credential -> 401",
+            "todos access — plugin lifecycle gate installs the plugin inactive",
+            "todos access — plugin lifecycle gate GET /api/todos/lists while the plugin is inactive -> 503",
+            "todos access — plugin lifecycle gate POST /api/todos/lists while the plugin is inactive -> 503",
+            "todos access — plugin lifecycle gate PATCH /api/todos/lists/any while the plugin is inactive -> 503",
+            "todos access — plugin lifecycle gate DELETE /api/todos/lists/any while the plugin is inactive -> 503",
+            "todos access — plugin lifecycle gate GET /api/todos while the plugin is inactive -> 503",
+            "todos access — plugin lifecycle gate POST /api/todos while the plugin is inactive -> 503",
+            "todos access — plugin lifecycle gate GET /api/todos/any while the plugin is inactive -> 503",
+            "todos access — plugin lifecycle gate PATCH /api/todos/any while the plugin is inactive -> 503",
+            "todos access — plugin lifecycle gate DELETE /api/todos/any while the plugin is inactive -> 503",
+            "todos access — plugin lifecycle gate POST /api/todos/any/completion while the plugin is inactive -> 503",
+            "todos access — plugin lifecycle gate DELETE /api/todos/any/completion while the plugin is inactive -> 503"
+          ],
+          "tests/boundary/todos-assignee.test.ts": [
+            "todos assignee — adults only, checked on write (ADR-068) POST assigning a child -> 400 and nothing is stored",
+            "todos assignee — adults only, checked on write (ADR-068) POST assigning an archived parent -> 400 and nothing is stored",
+            "todos assignee — adults only, checked on write (ADR-068) POST assigning an unknown member -> 400 and nothing is stored",
+            "todos assignee — adults only, checked on write (ADR-068) POST assigning a non-string value -> 400 and nothing is stored",
+            "todos assignee — adults only, checked on write (ADR-068) PATCH assigning a child -> 400 and the assignee is unchanged",
+            "todos assignee — adults only, checked on write (ADR-068) PATCH assigning an archived parent -> 400 and the assignee is unchanged",
+            "todos assignee — adults only, checked on write (ADR-068) PATCH assigning an unknown member -> 400 and the assignee is unchanged",
+            "todos assignee — adults only, checked on write (ADR-068) PATCH assigning a non-string value -> 400 and the assignee is unchanged",
+            "todos assignee — adults only, checked on write (ADR-068) PATCH reassigns to another active parent",
+            "todos assignee — adults only, checked on write (ADR-068) reads keep returning the stored id after the assignee is archived",
+            "todos assignee — adults only, checked on write (ADR-068) an archived assignee does not block edits that leave the assignee alone",
+            "todos assignee — adults only, checked on write (ADR-068) assigneeMemberId filters by the stored id; an unknown member has no to-dos"
+          ],
+          "tests/boundary/todos-items.test.ts": [
+            "todos items — create and read POST with only listId and title creates an open, undated, unassigned to-do",
+            "todos items — create and read POST stores every optional field and GET returns the same to-do",
+            "todos items — create and read POST treats blank notes as no notes",
+            "todos items — create and read POST with a missing listId -> 400 and nothing is stored",
+            "todos items — create and read POST with an unknown listId -> 400 and nothing is stored",
+            "todos items — create and read POST with a non-string listId -> 400 and nothing is stored",
+            "todos items — create and read POST with a missing title -> 400 and nothing is stored",
+            "todos items — create and read POST with a blank title -> 400 and nothing is stored",
+            "todos items — create and read POST with a title of only zero-width characters -> 400 and nothing is stored",
+            "todos items — create and read POST with a title of only direction marks and spaces -> 400 and nothing is stored",
+            "todos items — create and read POST with a title of only a soft hyphen -> 400 and nothing is stored",
+            "todos items — create and read POST with a title of only a variation selector -> 400 and nothing is stored",
+            "todos items — create and read POST with a non-string title -> 400 and nothing is stored",
+            "todos items — create and read POST with a title over 200 characters -> 400 and nothing is stored",
+            "todos items — create and read POST with non-string notes -> 400 and nothing is stored",
+            "todos items — create and read POST with notes over 2000 characters -> 400 and nothing is stored",
+            "todos items — create and read POST with a loosely formatted due date -> 400 and nothing is stored",
+            "todos items — create and read POST with an impossible due date -> 400 and nothing is stored",
+            "todos items — create and read POST with a timestamp as due date -> 400 and nothing is stored",
+            "todos items — create and read POST with an unknown field -> 400 and nothing is stored",
+            "todos items — create and read POST with a client-supplied completedAt -> 400 and nothing is stored",
+            "todos items — create and read accepts a 200-character title and 2000-character notes",
+            "todos items — create and read caps a title after trimming: 200 characters padded with spaces are stored, 201 are not",
+            "todos items — create and read keeps a title whose visible text carries zero-width or format characters",
+            "todos items — create and read GET, PATCH, DELETE and completion of an unknown to-do -> 404",
+            "todos items — edit and delete PATCH changes only the fields it names and advances updatedAt",
+            "todos items — edit and delete PATCH with null clears notes, due date and assignee",
+            "todos items — edit and delete PATCH does not change whether a to-do is done",
+            "todos items — edit and delete PATCH with an empty body -> 400 and the to-do is unchanged",
+            "todos items — edit and delete PATCH with a null title -> 400 and the to-do is unchanged",
+            "todos items — edit and delete PATCH with a blank title -> 400 and the to-do is unchanged",
+            "todos items — edit and delete PATCH with a title of only zero-width characters -> 400 and the to-do is unchanged",
+            "todos items — edit and delete PATCH with a null listId -> 400 and the to-do is unchanged",
+            "todos items — edit and delete PATCH with an unknown listId -> 400 and the to-do is unchanged",
+            "todos items — edit and delete PATCH with an impossible due date -> 400 and the to-do is unchanged",
+            "todos items — edit and delete PATCH with notes over 2000 characters -> 400 and the to-do is unchanged",
+            "todos items — edit and delete PATCH with an unknown field -> 400 and the to-do is unchanged",
+            "todos items — edit and delete PATCH with a client-supplied completedAt -> 400 and the to-do is unchanged",
+            "todos items — edit and delete DELETE removes the to-do and keeps its list",
+            "todos items — completion completing twice keeps the first completedAt; reopening twice leaves it open",
+            "todos items — list, filter and order defaults to open to-dos: due date ascending, undated last, then creation order",
+            "todos items — list, filter and order status=done returns only done to-dos and status=all puts open ones first",
+            "todos items — list, filter and order listId keeps one list's to-dos; an unknown list has none",
+            "todos items — list, filter and order dueBy keeps to-dos due on or before the date, overdue included, and drops undated ones",
+            "todos items — list, filter and order filters combine",
+            "todos items — list, filter and order GET with an unknown status -> 400",
+            "todos items — list, filter and order GET with a loosely formatted dueBy -> 400",
+            "todos items — list, filter and order GET with an impossible dueBy -> 400",
+            "todos items — list, filter and order GET with a repeated status -> 400",
+            "todos items — list, filter and order GET with a repeated listId -> 400",
+            "todos items — list, filter and order GET with a repeated assigneeMemberId -> 400"
+          ],
+          "tests/boundary/todos-lists.test.ts": [
+            "todos lists POST creates a list with a trimmed name and no open to-dos",
+            "todos lists GET orders lists by name, ignoring case, and counts only open to-dos",
+            "todos lists POST with a missing name -> 400 and nothing is stored",
+            "todos lists POST with a non-string name -> 400 and nothing is stored",
+            "todos lists POST with a blank name -> 400 and nothing is stored",
+            "todos lists POST with a name of only zero-width characters -> 400 and nothing is stored",
+            "todos lists POST with a name of only direction marks and spaces -> 400 and nothing is stored",
+            "todos lists POST with a name over 80 characters -> 400 and nothing is stored",
+            "todos lists POST with an unknown field -> 400 and nothing is stored",
+            "todos lists POST with an array as the body -> 400",
+            "todos lists POST with a string as the body -> 400",
+            "todos lists POST with null as the body -> 400",
+            "todos lists accepts a name of exactly 80 characters",
+            "todos lists caps a name after trimming: 80 characters padded with spaces are stored, 81 are not",
+            "todos lists POST with a name another list already has -> 409",
+            "todos lists PATCH renames a list and advances updatedAt",
+            "todos lists PATCH keeps the list's own name without a conflict",
+            "todos lists PATCH to another list's name -> 409 and the name is unchanged",
+            "todos lists PATCH with an empty body -> 400",
+            "todos lists PATCH with a blank name -> 400",
+            "todos lists PATCH with a name of only zero-width characters -> 400",
+            "todos lists PATCH with an unknown field -> 400",
+            "todos lists PATCH and DELETE of an unknown list -> 404",
+            "todos lists an unexpected storage failure answers 500 without leaking its cause",
+            "todos lists DELETE removes the list and its to-dos, and leaves other lists alone"
+          ],
+          "tests/boundary/todos-rule-b.test.ts": [
+            "todos-rule-b — import boundary of the todos module (ADR-039 §2b′) rejects an import of the database client",
+            "todos-rule-b — import boundary of the todos module (ADR-039 §2b′) rejects an import of members internals",
+            "todos-rule-b — import boundary of the todos module (ADR-039 §2b′) rejects an import of a peer plugin module",
+            "todos-rule-b — import boundary of the todos module (ADR-039 §2b′) allows an import of the host-API barrel",
+            "todos-rule-b — import boundary of the todos module (ADR-039 §2b′) allows an import of a shared DTO",
+            "todos-rule-b — import boundary of the todos module (ADR-039 §2b′) rejects a direct process.env read"
+          ],
+          "tests/client/todos-agenda.test.tsx": [
+            "Home agenda to-dos group lists open to-dos due today first, then the overdue ones, after the event groups",
+            "Home agenda to-dos group marks overdue rows with their date and leaves today's rows unmarked",
+            "Home agenda to-dos group shows the assignee like an event row: identity accent and names for assistive technology",
+            "Home agenda to-dos group links the group header to the To-dos page",
+            "Home agenda to-dos group completes a to-do from its checkbox, drops the row and reads the group again",
+            "Home agenda to-dos group reports a completion that failed and keeps the row",
+            "Home agenda to-dos group removes the group with its last row and then says nothing is scheduled",
+            "Home agenda to-dos group says nothing is scheduled only when there are neither events nor due to-dos",
+            "Home agenda to-dos group does not claim an empty day while the due to-dos are still loading",
+            "Home agenda to-dos group does not claim an empty day while the plugin catalog is still loading",
+            "Home agenda to-dos group keeps the empty-day message where the agenda had it: padded, outside the groups scroller",
+            "Home agenda to-dos group asks for the to-dos due by the household date in Pacific/Kiritimati and marks overdue against it",
+            "Home agenda to-dos group asks for the to-dos due by the household date in Pacific/Pago_Pago and marks overdue against it",
+            "Home agenda to-dos group disables a checkbox while its completion is on its way, and only that one",
+            "Home agenda to-dos group keeps the events and reports a failed to-dos read with its own retry",
+            "Home agenda to-dos group does not read while the tablet is hidden",
+            "Home agenda to-dos group keeps the newer answer when an older read arrives after it",
+            "Home agenda to-dos group ignores the failure of an older read once a newer one answered",
+            "Home agenda to-dos group reads again when the tablet becomes visible",
+            "Home agenda to-dos group reads the next household day after midnight",
+            "Home agenda to-dos group labels the group Pendientes in Spanish",
+            "Home agenda to-dos group and the plugin lifecycle shows the group while the plugin is active",
+            "Home agenda to-dos group and the plugin lifecycle shows nothing and requests nothing while the plugin is inactive",
+            "Home agenda to-dos group and the plugin lifecycle still says nothing is scheduled on an empty day while the plugin is inactive"
+          ],
+          "tests/client/todos-board.test.tsx": [
+            "TodosBoard lists shows one pill per list with its open count and selects the first list",
+            "TodosBoard lists loads the to-dos of the list that is picked",
+            "TodosBoard lists invites to create the first list when there is none",
+            "TodosBoard lists creates a list from the selector and selects it",
+            "TodosBoard lists renames the selected list",
+            "TodosBoard lists asks before deleting a list and says how many to-dos go with it",
+            "TodosBoard lists still warns about the to-dos when their count cannot be read",
+            "TodosBoard lists keeps Delete disabled until the number of to-dos that go with the list is known",
+            "TodosBoard lists drops a count that arrives after the deletion question was closed",
+            "TodosBoard lists keeps the list dialog open on Escape while its save is on its way",
+            "TodosBoard lists reports a deletion that failed and keeps the list",
+            "TodosBoard lists closes the list dialog on Cancel and on Escape without a request",
+            "TodosBoard lists words the deletion warning for a list with []",
+            "TodosBoard lists words the deletion warning for a list with [{\"id\":\"only\",\"listId\":\"home\",\"title\":\"Only one\"}]",
+            "TodosBoard lists writes the list name \"Budget $$\" as it is stored, in the selector and in the deletion question",
+            "TodosBoard lists writes the list name \"A $& B\" as it is stored, in the selector and in the deletion question",
+            "TodosBoard lists writes the list name \"$1 and $`\" as it is stored, in the selector and in the deletion question",
+            "TodosBoard lists writes the list name \"Gastos {count} casa\" as it is stored, in the selector and in the deletion question",
+            "TodosBoard lists writes the list name \"{name}\" as it is stored, in the selector and in the deletion question",
+            "TodosBoard lists orders the lists as the household reads them, accented names in their place",
+            "TodosBoard lists selects the first list in reading order, not the first the API returns",
+            "TodosBoard list deletion and the admin PIN asks for the admin PIN before the deletion question and deletes after the right one",
+            "TodosBoard list deletion and the admin PIN leaves the list alone after a wrong PIN",
+            "TodosBoard list deletion and the admin PIN closes the PIN entry on Escape without deleting",
+            "TodosBoard list deletion and the admin PIN asks for the PIN again for the next deletion",
+            "TodosBoard list deletion and the admin PIN goes straight to the deletion question while the admin session is unlocked",
+            "TodosBoard list deletion and the admin PIN needs no PIN to create or rename a list, or to add, edit, complete or delete a to-do",
+            "TodosBoard to-dos lists open to-dos in API order with due date, overdue mark and assignee",
+            "TodosBoard to-dos writes the year of a due date in another year",
+            "TodosBoard to-dos names an archived assignee without an identity colour",
+            "TodosBoard to-dos says when the selected list has nothing pending",
+            "TodosBoard to-dos creates a to-do in the selected list on Enter and clears the field",
+            "TodosBoard to-dos keeps the typed title and reports a failed quick add",
+            "TodosBoard to-dos creates one to-do when the quick add is submitted again before the first answer",
+            "TodosBoard to-dos does not send a quick add whose title shows nothing",
+            "TodosBoard to-dos marks overdue by the household date in Pacific/Kiritimati, not by UTC",
+            "TodosBoard to-dos marks overdue by the household date in Pacific/Pago_Pago, not by UTC",
+            "TodosBoard to-dos marks a to-do overdue when the household day ends, without a reload",
+            "TodosBoard to-dos marks a to-do overdue when the tablet wakes on a later household day",
+            "TodosBoard to-dos completes a to-do from its checkbox and takes it off the open list",
+            "TodosBoard to-dos reports a completion that failed and keeps the to-do open",
+            "TodosBoard to-dos disables a checkbox while its completion is on its way, and only that one",
+            "TodosBoard to-dos keeps Done collapsed, loads it on demand and reopens an unchecked to-do",
+            "TodosBoard to-dos collapses Done on a second tap",
+            "TodosBoard to-dos collapses Done again when another list is picked",
+            "TodosBoard dialog offers only active adults as assignees",
+            "TodosBoard dialog adds a to-do with every field and carries the quick-add text into the form",
+            "TodosBoard dialog allows nobody as assignee and requires a title",
+            "TodosBoard dialog edits a to-do and sends only what changed",
+            "TodosBoard dialog moves a to-do to another list from the edit dialog",
+            "TodosBoard dialog closes an unchanged edit without a request",
+            "TodosBoard dialog keeps an archived assignee selectable and leaves it alone unless it is changed",
+            "TodosBoard dialog keeps the dialog open and reports a rejected save",
+            "TodosBoard dialog keeps the to-do dialog open on Escape while its save is on its way",
+            "TodosBoard dialog deletes a to-do from the edit dialog after confirmation",
+            "TodosBoard dialog discards the form on Cancel and on Escape",
+            "TodosBoard dialog keeps the to-do when its deletion is cancelled or fails",
+            "TodosBoard dialog has no delete action while creating",
+            "TodosBoard loading and failures announces loading before the lists arrive",
+            "TodosBoard loading and failures reports a failed load without raw diagnostics and recovers on retry",
+            "TodosBoard loading and failures reports a failed read of the selected list and retries only that read",
+            "TodosBoard loading and failures reports a failed Members read and recovers on retry",
+            "TodosBoard loading and failures reports a request that never reached the server",
+            "TodosBoard loading and failures keeps the list on screen when a slower read of the list left behind answers late",
+            "TodosBoard loading and failures ignores the failure of a read of the list left behind",
+            "TodosBoard loading and failures shows due dates without overdue marks until the household timezone is known",
+            "TodosBoard loading and failures stays usable when the plugin answers 503 plugin_unavailable",
+            "TodosBoard loading and failures says to-dos are turned off when a write meets the deactivated plugin",
+            "TodosBoard loading and failures names everything Pendientes in Spanish and formats dates in Spanish"
+          ],
+          "tests/client/todos-nav.test.tsx": [
+            "household navigation gated per plugin resolves /todos as a family destination owned by the todos plugin",
+            "household navigation gated per plugin links To-dos after Meals while both plugins are active",
+            "household navigation gated per plugin hides only To-dos while the todos plugin is inactive",
+            "household navigation gated per plugin hides only Meals while the meals plugin is inactive",
+            "household navigation gated per plugin hides both plugin pages while both plugins are inactive",
+            "household navigation gated per plugin renders the To-dos page inside the household chrome at /todos",
+            "household navigation gated per plugin keeps the shell and shows the unavailable notice at /todos while the plugin is inactive",
+            "household navigation gated per plugin names the page Pendientes in the Spanish navigation"
+          ],
+          "tests/client/todos-presentation.test.ts": [
+            "to-do presentation treats only an open to-do due before today as overdue",
+            "to-do presentation formats a due date in the UI language and adds the year only when it differs",
+            "to-do presentation offers active parents only, in the order the household lists them",
+            "to-do presentation puts to-dos due today before overdue ones and keeps the read order inside each",
+            "to-do assignee resolves an active assignee with its identity colour",
+            "to-do assignee keeps only a label for an archived or missing assignee, and nothing for nobody",
+            "to-do copy and order fills placeholders with the values as they are, in one pass",
+            "to-do copy and order leaves a placeholder nobody filled as written",
+            "to-do copy and order orders lists by name in the UI language without moving the read",
+            "to-dos request failures chooses the copy by the API's stable code",
+            "todos-i18n-parity has every to-dos key in English and Spanish with non-empty copy",
+            "todos-i18n-parity never calls to-dos tasks, which the kiosk reserves for the children's chores",
+            "todos-i18n-parity keeps the placeholders of each key identical across languages"
+          ],
+          "tests/client/api.test.ts": [
+            "apiFetch returns a 2xx response and reads its JSON",
+            "apiFetch rejects with the code a route puts in `error`",
+            "apiFetch rejects with the `code` of the plugin lifecycle gate's 503",
+            "apiFetch prefers the route's `error` when a body carries both",
+            "apiFetch rejects without a code for no JSON body",
+            "apiFetch rejects without a code for a body without a code",
+            "apiFetch rejects without a code for codes that are not strings",
+            "apiFetch rejects without a code for a null body",
+            "apiFetch builds a JSON request"
           ]
         }
       },
@@ -6145,6 +6456,10 @@
           "tests/e2e/time-announcements-admin.spec.ts": [
             "b13f82e6f62fe0b345d2-671acadda6ab41163287"
           ],
+          "tests/e2e/todos.spec.ts": [
+            "8a9e645a89191b4a5606-b1ed5d2b20da9f5eb29c",
+            "8a9e645a89191b4a5606-b5b5073016b5ec16ee52"
+          ],
           "tests/e2e/weather.spec.ts": [
             "d5f1906f292cab0ebdcd-89f4250569c3e2076408",
             "d5f1906f292cab0ebdcd-470ca95a4a0d7439403e"
@@ -6163,10 +6478,10 @@
       "src/client/admin/AdminGate.tsx": {
         "layer": "client",
         "minimumTotals": {
-          "lines": 68,
-          "statements": 80,
-          "functions": 24,
-          "branches": 46
+          "lines": 41,
+          "statements": 47,
+          "functions": 13,
+          "branches": 18
         },
         "minimumRates": {
           "lines": 100,
@@ -7318,9 +7633,9 @@
       "src/client/home/TodayAgenda.tsx": {
         "layer": "client",
         "minimumTotals": {
-          "lines": 62,
-          "statements": 73,
-          "functions": 21,
+          "lines": 57,
+          "statements": 69,
+          "functions": 20,
           "branches": 61
         },
         "minimumRates": {
@@ -7573,10 +7888,10 @@
       "src/client/lib/household-date.ts": {
         "layer": "client",
         "minimumTotals": {
-          "lines": 1,
-          "statements": 1,
-          "functions": 1,
-          "branches": 0
+          "lines": 13,
+          "statements": 14,
+          "functions": 7,
+          "branches": 4
         },
         "minimumRates": {
           "lines": 100,
@@ -7786,7 +8101,7 @@
           "lines": 96,
           "statements": 112,
           "functions": 22,
-          "branches": 40
+          "branches": 34
         },
         "minimumRates": {
           "lines": 71.87,
@@ -7888,10 +8203,10 @@
       "src/client/plugins/contributions.ts": {
         "layer": "client",
         "minimumTotals": {
-          "lines": 21,
-          "statements": 28,
-          "functions": 9,
-          "branches": 31
+          "lines": 23,
+          "statements": 29,
+          "functions": 12,
+          "branches": 30
         },
         "minimumRates": {
           "lines": 100,
@@ -10769,8 +11084,8 @@
       "src/server/plugins/http.ts": {
         "layer": "server",
         "minimumTotals": {
-          "lines": 21,
-          "statements": 23,
+          "lines": 20,
+          "statements": 22,
           "functions": 15,
           "branches": 4
         },
@@ -11369,10 +11684,10 @@
       "src/shared/index.ts": {
         "layer": "shared",
         "minimumTotals": {
-          "lines": 5,
-          "statements": 5,
-          "functions": 1,
-          "branches": 0
+          "lines": 23,
+          "statements": 24,
+          "functions": 3,
+          "branches": 12
         },
         "minimumRates": {
           "lines": 100,
@@ -11544,6 +11859,231 @@
           "statements": 100,
           "functions": 100,
           "branches": 87.5
+        }
+      },
+      "src/server/modules/todos/index.ts": {
+        "layer": "server",
+        "minimumTotals": {
+          "lines": 108,
+          "statements": 124,
+          "functions": 30,
+          "branches": 86
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 100
+        }
+      },
+      "src/server/openapi/todos.ts": {
+        "layer": "server",
+        "minimumTotals": {
+          "lines": 20,
+          "statements": 21,
+          "functions": 1,
+          "branches": 0
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 100
+        }
+      },
+      "src/server/routes/todos.ts": {
+        "layer": "server",
+        "minimumTotals": {
+          "lines": 36,
+          "statements": 37,
+          "functions": 15,
+          "branches": 6
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 100
+        }
+      },
+      "src/client/home/AgendaGroup.tsx": {
+        "layer": "client",
+        "minimumTotals": {
+          "lines": 7,
+          "statements": 7,
+          "functions": 4,
+          "branches": 11
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 100
+        }
+      },
+      "src/client/lib/api.ts": {
+        "layer": "client",
+        "minimumTotals": {
+          "lines": 10,
+          "statements": 13,
+          "functions": 6,
+          "branches": 4
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 100
+        }
+      },
+      "src/client/todos/AgendaTodos.tsx": {
+        "layer": "client",
+        "minimumTotals": {
+          "lines": 39,
+          "statements": 51,
+          "functions": 17,
+          "branches": 30
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 96.66
+        }
+      },
+      "src/client/todos/TodoDialog.tsx": {
+        "layer": "client",
+        "minimumTotals": {
+          "lines": 44,
+          "statements": 50,
+          "functions": 17,
+          "branches": 44
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 100
+        }
+      },
+      "src/client/todos/TodoDue.tsx": {
+        "layer": "client",
+        "minimumTotals": {
+          "lines": 4,
+          "statements": 5,
+          "functions": 1,
+          "branches": 10
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 100
+        }
+      },
+      "src/client/todos/TodoListDialog.tsx": {
+        "layer": "client",
+        "minimumTotals": {
+          "lines": 19,
+          "statements": 21,
+          "functions": 5,
+          "branches": 10
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 100
+        }
+      },
+      "src/client/todos/TodosBoard.tsx": {
+        "layer": "client",
+        "minimumTotals": {
+          "lines": 76,
+          "statements": 87,
+          "functions": 36,
+          "branches": 75
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 98.66
+        }
+      },
+      "src/client/todos/todo-presentation.ts": {
+        "layer": "client",
+        "minimumTotals": {
+          "lines": 11,
+          "statements": 13,
+          "functions": 12,
+          "branches": 13
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 100
+        }
+      },
+      "src/client/todos/todos-api.ts": {
+        "layer": "client",
+        "minimumTotals": {
+          "lines": 10,
+          "statements": 16,
+          "functions": 5,
+          "branches": 6
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 100
+        }
+      },
+      "src/client/todos/usePendingIds.ts": {
+        "layer": "client",
+        "minimumTotals": {
+          "lines": 10,
+          "statements": 11,
+          "functions": 4,
+          "branches": 0
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 100
+        }
+      },
+      "src/client/todos/useTodosWorkspace.ts": {
+        "layer": "client",
+        "minimumTotals": {
+          "lines": 92,
+          "statements": 98,
+          "functions": 27,
+          "branches": 26
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 100
+        }
+      },
+      "src/client/admin/AdminPinPad.tsx": {
+        "layer": "client",
+        "minimumTotals": {
+          "lines": 100,
+          "statements": 114,
+          "functions": 20,
+          "branches": 70
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 99.12,
+          "functions": 100,
+          "branches": 97.14
         }
       }
     }

@@ -38,6 +38,7 @@ const ADR_029_CANDIDATES = [
   "meals-recipes",
   "reminders",
   "daily-messages",
+  "todos",
   "external-calendar-sync",
 ] as const;
 
@@ -62,6 +63,7 @@ const DELIVERED_PLUGIN_IDS = [
   "meals-recipes",
   "reminders",
   "daily-messages",
+  "todos",
 ] as const;
 
 const EXPECTED_DECLARATIONS = {
@@ -227,6 +229,19 @@ const EXPECTED_DECLARATIONS = {
     requirements: ["members"],
     settingsSchema: [],
   },
+  todos: {
+    contributions: {
+      routes: ["todos-api"],
+      admin: [],
+      settings: [],
+      widgets: ["agenda-todos"],
+      services: [],
+      contentSources: [],
+      jobs: [],
+    },
+    requirements: ["members"],
+    settingsSchema: [],
+  },
 } as const;
 
 const PROHIBITED_API_SHAPES = [
@@ -372,8 +387,8 @@ function collectExportedNames(sourceText: string): string[] {
 
 describe("first-party plugin manifest inventory", () => {
   it("maps every ADR-029 candidate to the closed delivered cohort", () => {
-    expect(ADR_029_CANDIDATES).toHaveLength(18);
-    expect(new Set(ADR_029_CANDIDATES).size).toBe(18);
+    expect(ADR_029_CANDIDATES).toHaveLength(19);
+    expect(new Set(ADR_029_CANDIDATES).size).toBe(19);
     expect([...CORE_CANDIDATES, ...DELIVERED_PLUGIN_IDS, "external-calendar-sync"].sort()).toEqual(
       [...ADR_029_CANDIDATES].sort()
     );

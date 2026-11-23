@@ -19,7 +19,7 @@ import { WeatherPill } from "@/home/WeatherPill";
 import { useT } from "@/i18n";
 import { PrinterAttention } from "@/printing/PrinterAttention";
 import { PluginHealthIndicator } from "@/plugins/PluginHealthIndicator";
-import { PluginContribution, usePluginActive } from "@/plugins/contributions";
+import { PluginContribution, usePluginActivity } from "@/plugins/contributions";
 import { familyRoutes, navigateHousehold } from "./routes";
 
 function isUnmodifiedPrimaryClick(event: ReactMouseEvent<HTMLAnchorElement>): boolean {
@@ -81,7 +81,7 @@ function HouseholdChromeContent({
   const [optionsOpen, setOptionsOpen] = useState(false);
   const optionsId = useId();
   const optionsTriggerRef = useRef<HTMLButtonElement>(null);
-  const mealsActive = usePluginActive("meals-recipes");
+  const isPluginActive = usePluginActivity();
   const { unlocked } = useAdminUnlock();
   // Once admin is unlocked the bar turns into the admin bar: a way home and where you are.
   // The locked PIN screen keeps the household bar, so the kiosk is never a dead end.
@@ -159,7 +159,7 @@ function HouseholdChromeContent({
               data-testid="household-nav"
             >
               {familyRoutes
-                .filter((route) => !("pluginId" in route) || mealsActive)
+                .filter((route) => !("pluginId" in route) || isPluginActive(route.pluginId))
                 .map((route) => (
                   <Button key={route.id} variant="ghost" size="sm" asChild>
                     <a

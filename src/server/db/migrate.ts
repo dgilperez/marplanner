@@ -10,6 +10,9 @@ const MIGRATIONS_TABLE = "drizzle_universe_migrations";
  * below. */
 const BASELINE_MIGRATION = "0000_baseline.sql";
 const LIFECYCLE_CONTEXT_TABLE = "plugin_lifecycle_migration_context";
+const BASELINE_PLUGIN_COUNT = 9;
+/** Forward migrations that each add one plugin registry row to the nine the baseline seeds. */
+const PLUGIN_REGISTRATION_MIGRATIONS: readonly string[] = ["0003_todos.sql"];
 
 export interface MigrationOptions {
   now?: () => number;
@@ -124,7 +127,10 @@ function dropLifecycleContext(db: ReturnType<typeof import("better-sqlite3")>): 
   db.exec(`DROP TABLE IF EXISTS temp.${LIFECYCLE_CONTEXT_TABLE}`);
 }
 
-function assertCompleteLifecycleMetadata(db: ReturnType<typeof import("better-sqlite3")>): void {
+function assertCompleteLifecycleMetadata(
+  db: ReturnType<typeof import("better-sqlite3")>,
+  applied: ReadonlySet<string>
+): void {
   const requiredTables = [
     "installation_lineage",
     "plugin_activation_registry",
@@ -145,7 +151,10 @@ function assertCompleteLifecycleMetadata(db: ReturnType<typeof import("better-sq
   const registry = db.prepare("SELECT COUNT(*) AS count FROM plugin_activation_registry").get() as {
     count: number;
   };
-  if (lineage.count !== 1 || registry.count !== 9) {
+  const expectedPlugins =
+    BASELINE_PLUGIN_COUNT +
+    PLUGIN_REGISTRATION_MIGRATIONS.filter((fileName) => applied.has(fileName)).length;
+  if (lineage.count !== 1 || registry.count !== expectedPlugins) {
     throw new Error("Incomplete plugin lifecycle migration history.");
   }
 }
@@ -174,7 +183,7 @@ export function runMigrations(
     throw new Error("Unsupported migration history.");
   }
   if (applied.has(BASELINE_MIGRATION)) {
-    assertCompleteLifecycleMetadata(db);
+    assertCompleteLifecycleMetadata(db, applied);
   }
 
   const pending = getPendingMigrations(migrationsDir, applied);

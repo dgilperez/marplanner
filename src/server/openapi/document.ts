@@ -55,6 +55,11 @@ export const API_TAGS = [
       "**Marplanner — Daily Messages API**\n\nPer-member daily messages with strict dates and text validation. Writes require an active member; reads preserve archived-member history and reject unknown members. The device-key cookie authorizes backend access.",
   },
   {
+    name: "todos",
+    description:
+      "**Marplanner — To-dos API**\n\nHousehold to-dos for the adults, grouped in lists, with an optional due date and an optional assignee. A write that changes the assignee requires an active member whose role is parent; reads return the stored member id even after that member is archived. Deleting a list deletes its to-dos. The device-key cookie authorizes backend access.",
+  },
+  {
     name: "daily-briefing",
     description:
       "**Marplanner — Daily Briefing API**\n\nBriefing block configuration, generation, preview and print integration. The server composes and renders content; printing uses the current registered provider at execution time.\n\n**Marplanner — Daily Briefing API**\n\nMember briefing generation, opt-in settings, snapshots and status. Calendar, chores, reminders, meals and messages are read through their owning domain interfaces.",

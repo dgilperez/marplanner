@@ -42,6 +42,7 @@ const CATALOG: readonly PluginCatalogEntry[] = [
   "meals-recipes",
   "reminders",
   "daily-messages",
+  "todos",
 ].map((id) => ({
   ...ENTRY,
   id: id as PluginCatalogEntry["id"],
@@ -265,7 +266,7 @@ describe("plugin lifecycle routes", () => {
         cookies: { mp_device_key: "device-full" },
       });
       expect(response.statusCode).toBe(200);
-      expect(response.json().plugins).toHaveLength(9);
+      expect(response.json().plugins).toHaveLength(10);
     } finally {
       await app.close();
     }
@@ -283,7 +284,7 @@ describe("plugin lifecycle routes", () => {
         });
         expect(response.statusCode).toBe(200);
         const body = response.json();
-        expect(body.plugins).toHaveLength(9);
+        expect(body.plugins).toHaveLength(10);
         expect(body.plugins.map((plugin: PluginCatalogEntry) => plugin.id)).toEqual([
           "daily-briefing",
           "printing",
@@ -294,6 +295,7 @@ describe("plugin lifecycle routes", () => {
           "meals-recipes",
           "reminders",
           "daily-messages",
+          "todos",
         ]);
         for (const plugin of body.plugins) {
           expect(Object.keys(plugin).sort()).toEqual(CATALOG_ENTRY_KEYS);

@@ -137,6 +137,7 @@ curl -s -H "$AUTH" "$BASE/api/menu?date=$TODAY"
 | Meals & recipes    | `/api/recipes`, `/api/meal-plans`, `/api/meal-entries`, `/api/menu`                       |
 | Reminders          | `/api/reminders`                                                                          |
 | Daily messages     | `/api/daily-messages`                                                                     |
+| To-dos             | `/api/todos`, `/api/todos/lists`                                                          |
 | Daily briefing     | `/api/daily-briefing`                                                                     |
 | Printing           | `/api/printing`                                                                           |
 | Time announcements | `/api/time-announcements`                                                                 |

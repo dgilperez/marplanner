@@ -7,12 +7,41 @@ import {
 } from "../../shared";
 import { localDateParts, nextOccurrenceInTz } from "../../shared/householdTime";
 
-export interface AgendaPresentationItem {
+/** Who a row belongs to: active members keep their identity colour, and a stale reference
+ * (archived or missing member) keeps only a readable label. */
+export interface AgendaAssignees {
+  activeAssignees: { memberId: string; label: string; colorKey: MemberColorKey }[];
+  fallbackAssigneeLabels: string[];
+}
+
+export interface AgendaPresentationItem extends AgendaAssignees {
   event: FeedItem;
   kind: "all-day" | "timed";
   temporalState: "past" | "in-progress" | "next" | "future";
-  activeAssignees: { memberId: string; label: string; colorKey: MemberColorKey }[];
-  fallbackAssigneeLabels: string[];
+}
+
+/** Resolves stored member ids against the Members read, in the stored order. */
+export function resolveAssignees(
+  memberIds: readonly string[],
+  profiles: ReadonlyMap<string, Member>
+): AgendaAssignees {
+  const activeAssignees: AgendaAssignees["activeAssignees"] = [];
+  const fallbackAssigneeLabels: string[] = [];
+  for (const memberId of memberIds) {
+    const member = profiles.get(memberId);
+    if (member?.lifecycle === "active") {
+      activeAssignees.push({ memberId, label: member.displayName, colorKey: member.colorKey });
+    } else {
+      // The stored reference carries an id, not a label. Preserve the Members read's label where
+      // available; never invent an active profile/colour for a stale reference.
+      fallbackAssigneeLabels.push(member?.displayName ?? memberId);
+    }
+  }
+  return { activeAssignees, fallbackAssigneeLabels };
+}
+
+export function memberProfiles(members: readonly Member[]): Map<string, Member> {
+  return new Map(members.map((member) => [member.id, member]));
 }
 
 function householdDate(timezone: string, now: number): string {
@@ -92,7 +121,7 @@ export function presentAgenda(
     startMs: Date.parse(day.from),
     endMs: Date.parse(day.to),
   };
-  const profiles = new Map(members.map((member) => [member.id, member]));
+  const profiles = memberProfiles(members);
   const items: AgendaPresentationItem[] = events
     // Same overlap rule as the Calendar read: an ongoing holiday or overnight event shows today.
     .filter((event) => occurrenceOverlaps(event, today))
@@ -102,18 +131,6 @@ export function presentAgenda(
       return a.allDay ? 0 : Date.parse(a.occurrenceStart) - Date.parse(b.occurrenceStart);
     })
     .map((event) => {
-      const activeAssignees: AgendaPresentationItem["activeAssignees"] = [];
-      const fallbackAssigneeLabels: string[] = [];
-      for (const memberId of event.assignedTo) {
-        const member = profiles.get(memberId);
-        if (member?.lifecycle === "active") {
-          activeAssignees.push({ memberId, label: member.displayName, colorKey: member.colorKey });
-        } else {
-          // FeedItem carries ids, not labels. Preserve the Members read's label where
-          // available; never invent an active profile/colour for a stale reference.
-          fallbackAssigneeLabels.push(member?.displayName ?? memberId);
-        }
-      }
       let temporalState: AgendaPresentationItem["temporalState"] = "future";
       if (!event.allDay && Date.parse(event.occurrenceStart) <= now) {
         temporalState =
@@ -123,8 +140,7 @@ export function presentAgenda(
         event,
         kind: event.allDay ? "all-day" : "timed",
         temporalState,
-        activeAssignees,
-        fallbackAssigneeLabels,
+        ...resolveAssignees(event.assignedTo, profiles),
       };
     });
   sortAllDay(items, members, locale);

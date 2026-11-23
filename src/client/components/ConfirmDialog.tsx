@@ -50,6 +50,8 @@ export interface ConfirmDialogProps {
   cancelLabel: string;
   /** Invoked when the confirm button is pressed; the dialog closes immediately after. */
   onConfirm: () => void;
+  /** Keeps the confirm button disabled while what it would confirm is not known yet. */
+  confirmDisabled?: boolean;
   /** Styles the confirm button as destructive. Defaults to `true` — this component exists to
    * guard a destructive transition (FR-008); a call site confirming a NON-destructive action
    * should not be using this component at all (see DP2 note above). */
@@ -66,6 +68,7 @@ export function ConfirmDialog({
   confirmLabel,
   cancelLabel,
   onConfirm,
+  confirmDisabled,
   destructive = true,
   confirmTestId,
   cancelTestId,
@@ -111,6 +114,7 @@ export function ConfirmDialog({
             type="button"
             variant={destructive ? "destructive" : "default"}
             data-testid={confirmTestId}
+            disabled={confirmDisabled}
             onClick={() => {
               onConfirm();
               onOpenChange(false);

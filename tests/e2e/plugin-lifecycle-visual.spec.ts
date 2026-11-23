@@ -28,6 +28,7 @@ const LABEL_KEYS: Record<PluginId, keyof typeof messages.en> = {
   "meals-recipes": "plugins.mealsRecipes.label",
   reminders: "plugins.reminders.label",
   "daily-messages": "plugins.dailyMessages.label",
+  todos: "plugins.todos.label",
 };
 
 const ERROR_KEYS: Record<PluginPublicErrorCode, keyof typeof messages.en> = {
@@ -222,7 +223,7 @@ async function expectCatalogOrderAndActions(
   expectedState: "active" | "inactive"
 ): Promise<void> {
   const rows = page.getByTestId(/^plugin-row-/);
-  await expect(rows).toHaveCount(9);
+  await expect(rows).toHaveCount(10);
   expect(
     await rows.evaluateAll((elements) => elements.map((element) => element.dataset.pluginId))
   ).toEqual(PLUGIN_IDS);
@@ -306,7 +307,7 @@ test("prepares every visual-review fixture at narrow and wide viewports", async 
         await expectAdminSectionListed(page, "admin-nav-weather", true, "admin-nav-plugins");
       });
 
-      await test.step("all nine active", async () => {
+      await test.step("all ten active", async () => {
         seedFixture(server.dataDir, "active");
         await openAdminRoute(page, server.origin, "/admin/plugins");
         const settings = (await (
@@ -474,7 +475,7 @@ test("prepares every visual-review fixture at narrow and wide viewports", async 
         await page.keyboard.press("Enter");
         await expect(page).toHaveURL(/\/admin\/plugins$/);
         await expect(page.getByTestId("plugin-catalog")).toBeVisible();
-        await expect(page.getByTestId(/^plugin-row-/)).toHaveCount(9);
+        await expect(page.getByTestId(/^plugin-row-/)).toHaveCount(10);
       });
     });
   }

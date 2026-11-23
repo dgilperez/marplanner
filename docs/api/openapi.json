@@ -1904,7 +1904,8 @@
           "network-devices",
           "meals-recipes",
           "reminders",
-          "daily-messages"
+          "daily-messages",
+          "todos"
         ]
       },
       "PluginLifecycleFailed": {
@@ -2812,6 +2813,169 @@
             "uniqueItems": true
           },
           "isActive": { "type": "boolean" }
+        },
+        "additionalProperties": false,
+        "minProperties": 1
+      },
+      "Todo": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "listId": { "type": "string" },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "trimmed before it is stored."
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000,
+                "description": "blank notes are stored as null."
+              },
+              { "type": "null" }
+            ]
+          },
+          "dueDate": {
+            "anyOf": [
+              { "type": "string", "description": "YYYY-MM-DD (household-local)" },
+              { "type": "null" }
+            ]
+          },
+          "assigneeMemberId": {
+            "description": "stored member id, returned as it is even when that member has been archived or removed.",
+            "type": ["string", "null"]
+          },
+          "completedAt": {
+            "anyOf": [{ "type": "integer", "description": "epoch ms" }, { "type": "null" }],
+            "description": "set while the to-do is done."
+          },
+          "createdAt": { "type": "integer", "description": "epoch ms" },
+          "updatedAt": { "type": "integer", "description": "epoch ms" }
+        },
+        "required": [
+          "id",
+          "listId",
+          "title",
+          "notes",
+          "dueDate",
+          "assigneeMemberId",
+          "completedAt",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "TodoCreate": {
+        "type": "object",
+        "properties": {
+          "listId": { "type": "string", "description": "must reference an existing list." },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "trimmed before it is stored."
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000,
+                "description": "blank notes are stored as null."
+              },
+              { "type": "null" }
+            ]
+          },
+          "dueDate": {
+            "anyOf": [
+              { "type": "string", "description": "YYYY-MM-DD (household-local)" },
+              { "type": "null" }
+            ]
+          },
+          "assigneeMemberId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "soft reference to members.id. A write that changes it requires an active member whose role is parent."
+              },
+              { "type": "null" }
+            ]
+          }
+        },
+        "required": ["listId", "title"],
+        "additionalProperties": false
+      },
+      "TodoList": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "trimmed before it is stored; unique among lists, compared exactly."
+          },
+          "openCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "to-dos in the list that are not done."
+          },
+          "createdAt": { "type": "integer", "description": "epoch ms" },
+          "updatedAt": { "type": "integer", "description": "epoch ms" }
+        },
+        "required": ["id", "name", "openCount", "createdAt", "updatedAt"],
+        "additionalProperties": false
+      },
+      "TodoListWrite": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "trimmed before it is stored; unique among lists, compared exactly."
+          }
+        },
+        "required": ["name"],
+        "additionalProperties": false
+      },
+      "TodoPatch": {
+        "type": "object",
+        "properties": {
+          "listId": { "type": "string" },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "trimmed before it is stored."
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000,
+                "description": "blank notes are stored as null."
+              },
+              { "type": "null" }
+            ]
+          },
+          "dueDate": {
+            "anyOf": [
+              { "type": "string", "description": "YYYY-MM-DD (household-local)" },
+              { "type": "null" }
+            ]
+          },
+          "assigneeMemberId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "soft reference to members.id. A write that changes it requires an active member whose role is parent."
+              },
+              { "type": "null" }
+            ]
+          }
         },
         "additionalProperties": false,
         "minProperties": 1
@@ -8147,8 +8311,8 @@
                   "type": "object",
                   "properties": {
                     "plugins": {
-                      "minItems": 9,
-                      "maxItems": 9,
+                      "minItems": 10,
+                      "maxItems": 10,
                       "type": "array",
                       "items": { "$ref": "#/components/schemas/PluginCatalogEntry" }
                     }
@@ -11181,6 +11345,735 @@
         }
       }
     },
+    "/api/todos": {
+      "get": {
+        "operationId": "getTodos",
+        "summary": "To-dos matching every given filter. Order: open before done, then due date ascending with undated last, then creation order.",
+        "tags": ["todos"],
+        "parameters": [
+          { "schema": { "type": "string" }, "in": "query", "name": "listId", "required": false },
+          {
+            "schema": { "type": "string", "enum": ["open", "done", "all"], "default": "open" },
+            "in": "query",
+            "name": "status",
+            "required": false
+          },
+          {
+            "schema": { "type": "string" },
+            "in": "query",
+            "name": "dueBy",
+            "required": false,
+            "description": "YYYY-MM-DD. Keeps to-dos due on or before this date, overdue ones included; undated to-dos are dropped."
+          },
+          {
+            "schema": { "type": "string" },
+            "in": "query",
+            "name": "assigneeMemberId",
+            "required": false,
+            "description": "matches the stored id; the member may be archived."
+          }
+        ],
+        "security": [{ "deviceKeyCookie": [] }],
+        "responses": {
+          "200": {
+            "description": "matching to-dos (possibly empty)",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Todo" } }
+              }
+            }
+          },
+          "400": {
+            "description": "unknown status, invalid dueBy, or a repeated parameter",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "401": {
+            "description": "Missing, ambiguous or invalid API credential (shared authentication boundary).",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthUnauthorized" } }
+            }
+          },
+          "429": {
+            "description": "Repeated credential failures from this transport source. Valid active credentials remain usable; this is failure-only retry backpressure, not a hard guess or request-volume limit.\n",
+            "headers": {
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Remaining cooldown in seconds, rounded up. Retry manually.",
+                "required": true
+              },
+              "Cache-Control": {
+                "schema": { "type": "string", "const": "no-store" },
+                "required": true
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string", "enum": ["too_many_requests"] },
+                    "message": { "type": "string", "enum": ["Authentication retry required"] }
+                  },
+                  "required": ["error", "message"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The owning plugin is inactive or unavailable.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PluginUnavailable" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "postTodos",
+        "summary": "Create an open to-do in a list.",
+        "tags": ["todos"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/TodoCreate" } }
+          }
+        },
+        "security": [{ "deviceKeyCookie": [] }],
+        "responses": {
+          "201": {
+            "description": "created",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Todo" } } }
+          },
+          "400": {
+            "description": "non-object body, unsupported field, invalid field, unknown list, or an assignee who is not an active parent",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "401": {
+            "description": "Missing, ambiguous or invalid API credential (shared authentication boundary).",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthUnauthorized" } }
+            }
+          },
+          "429": {
+            "description": "Repeated credential failures from this transport source. Valid active credentials remain usable; this is failure-only retry backpressure, not a hard guess or request-volume limit.\n",
+            "headers": {
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Remaining cooldown in seconds, rounded up. Retry manually.",
+                "required": true
+              },
+              "Cache-Control": {
+                "schema": { "type": "string", "const": "no-store" },
+                "required": true
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string", "enum": ["too_many_requests"] },
+                    "message": { "type": "string", "enum": ["Authentication retry required"] }
+                  },
+                  "required": ["error", "message"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The owning plugin is inactive or unavailable.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PluginUnavailable" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/todos/lists": {
+      "get": {
+        "operationId": "getTodoLists",
+        "summary": "Every list ordered by name (ASCII case ignored), each with its count of open to-dos.",
+        "tags": ["todos"],
+        "security": [{ "deviceKeyCookie": [] }],
+        "responses": {
+          "200": {
+            "description": "all lists (possibly empty)",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/TodoList" } }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, ambiguous or invalid API credential (shared authentication boundary).",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthUnauthorized" } }
+            }
+          },
+          "429": {
+            "description": "Repeated credential failures from this transport source. Valid active credentials remain usable; this is failure-only retry backpressure, not a hard guess or request-volume limit.\n",
+            "headers": {
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Remaining cooldown in seconds, rounded up. Retry manually.",
+                "required": true
+              },
+              "Cache-Control": {
+                "schema": { "type": "string", "const": "no-store" },
+                "required": true
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string", "enum": ["too_many_requests"] },
+                    "message": { "type": "string", "enum": ["Authentication retry required"] }
+                  },
+                  "required": ["error", "message"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The owning plugin is inactive or unavailable.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PluginUnavailable" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "postTodoLists",
+        "summary": "Create a list.",
+        "tags": ["todos"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/TodoListWrite" } }
+          }
+        },
+        "security": [{ "deviceKeyCookie": [] }],
+        "responses": {
+          "201": {
+            "description": "created",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/TodoList" } }
+            }
+          },
+          "400": {
+            "description": "non-object body, unsupported field, or invalid name",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "401": {
+            "description": "Missing, ambiguous or invalid API credential (shared authentication boundary).",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthUnauthorized" } }
+            }
+          },
+          "409": {
+            "description": "another list already has that name (`duplicate_name`)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "429": {
+            "description": "Repeated credential failures from this transport source. Valid active credentials remain usable; this is failure-only retry backpressure, not a hard guess or request-volume limit.\n",
+            "headers": {
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Remaining cooldown in seconds, rounded up. Retry manually.",
+                "required": true
+              },
+              "Cache-Control": {
+                "schema": { "type": "string", "const": "no-store" },
+                "required": true
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string", "enum": ["too_many_requests"] },
+                    "message": { "type": "string", "enum": ["Authentication retry required"] }
+                  },
+                  "required": ["error", "message"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The owning plugin is inactive or unavailable.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PluginUnavailable" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/todos/lists/{id}": {
+      "patch": {
+        "operationId": "patchTodoListsById",
+        "summary": "Rename a list.",
+        "tags": ["todos"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/TodoListWrite" } }
+          }
+        },
+        "parameters": [
+          { "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }
+        ],
+        "security": [{ "deviceKeyCookie": [] }],
+        "responses": {
+          "200": {
+            "description": "renamed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/TodoList" } }
+            }
+          },
+          "400": {
+            "description": "non-object body, unsupported field, or invalid name",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "401": {
+            "description": "Missing, ambiguous or invalid API credential (shared authentication boundary).",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthUnauthorized" } }
+            }
+          },
+          "404": {
+            "description": "unknown list id",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "409": {
+            "description": "another list already has that name (`duplicate_name`)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "429": {
+            "description": "Repeated credential failures from this transport source. Valid active credentials remain usable; this is failure-only retry backpressure, not a hard guess or request-volume limit.\n",
+            "headers": {
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Remaining cooldown in seconds, rounded up. Retry manually.",
+                "required": true
+              },
+              "Cache-Control": {
+                "schema": { "type": "string", "const": "no-store" },
+                "required": true
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string", "enum": ["too_many_requests"] },
+                    "message": { "type": "string", "enum": ["Authentication retry required"] }
+                  },
+                  "required": ["error", "message"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The owning plugin is inactive or unavailable.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PluginUnavailable" } }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteTodoListsById",
+        "summary": "Delete a list together with every to-do in it.",
+        "tags": ["todos"],
+        "parameters": [
+          { "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }
+        ],
+        "security": [{ "deviceKeyCookie": [] }],
+        "responses": {
+          "204": { "description": "deleted" },
+          "401": {
+            "description": "Missing, ambiguous or invalid API credential (shared authentication boundary).",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthUnauthorized" } }
+            }
+          },
+          "404": {
+            "description": "unknown list id",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "429": {
+            "description": "Repeated credential failures from this transport source. Valid active credentials remain usable; this is failure-only retry backpressure, not a hard guess or request-volume limit.\n",
+            "headers": {
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Remaining cooldown in seconds, rounded up. Retry manually.",
+                "required": true
+              },
+              "Cache-Control": {
+                "schema": { "type": "string", "const": "no-store" },
+                "required": true
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string", "enum": ["too_many_requests"] },
+                    "message": { "type": "string", "enum": ["Authentication retry required"] }
+                  },
+                  "required": ["error", "message"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The owning plugin is inactive or unavailable.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PluginUnavailable" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/todos/{id}": {
+      "get": {
+        "operationId": "getTodosById",
+        "summary": "Read one to-do.",
+        "tags": ["todos"],
+        "parameters": [
+          { "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }
+        ],
+        "security": [{ "deviceKeyCookie": [] }],
+        "responses": {
+          "200": {
+            "description": "the to-do",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Todo" } } }
+          },
+          "401": {
+            "description": "Missing, ambiguous or invalid API credential (shared authentication boundary).",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthUnauthorized" } }
+            }
+          },
+          "404": {
+            "description": "unknown to-do id",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "429": {
+            "description": "Repeated credential failures from this transport source. Valid active credentials remain usable; this is failure-only retry backpressure, not a hard guess or request-volume limit.\n",
+            "headers": {
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Remaining cooldown in seconds, rounded up. Retry manually.",
+                "required": true
+              },
+              "Cache-Control": {
+                "schema": { "type": "string", "const": "no-store" },
+                "required": true
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string", "enum": ["too_many_requests"] },
+                    "message": { "type": "string", "enum": ["Authentication retry required"] }
+                  },
+                  "required": ["error", "message"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The owning plugin is inactive or unavailable.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PluginUnavailable" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patchTodosById",
+        "summary": "Partial edit: only the named fields change and null clears a nullable field. The assignee is checked only when the request changes it. Completion is not editable here.",
+        "tags": ["todos"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/TodoPatch" } }
+          }
+        },
+        "parameters": [
+          { "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }
+        ],
+        "security": [{ "deviceKeyCookie": [] }],
+        "responses": {
+          "200": {
+            "description": "updated",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Todo" } } }
+          },
+          "400": {
+            "description": "non-object or empty body, unsupported field, invalid field, unknown list, or a new assignee who is not an active parent",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "401": {
+            "description": "Missing, ambiguous or invalid API credential (shared authentication boundary).",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthUnauthorized" } }
+            }
+          },
+          "404": {
+            "description": "unknown to-do id",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "429": {
+            "description": "Repeated credential failures from this transport source. Valid active credentials remain usable; this is failure-only retry backpressure, not a hard guess or request-volume limit.\n",
+            "headers": {
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Remaining cooldown in seconds, rounded up. Retry manually.",
+                "required": true
+              },
+              "Cache-Control": {
+                "schema": { "type": "string", "const": "no-store" },
+                "required": true
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string", "enum": ["too_many_requests"] },
+                    "message": { "type": "string", "enum": ["Authentication retry required"] }
+                  },
+                  "required": ["error", "message"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The owning plugin is inactive or unavailable.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PluginUnavailable" } }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteTodosById",
+        "summary": "Delete a to-do.",
+        "tags": ["todos"],
+        "parameters": [
+          { "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }
+        ],
+        "security": [{ "deviceKeyCookie": [] }],
+        "responses": {
+          "204": { "description": "deleted" },
+          "401": {
+            "description": "Missing, ambiguous or invalid API credential (shared authentication boundary).",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthUnauthorized" } }
+            }
+          },
+          "404": {
+            "description": "unknown to-do id",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "429": {
+            "description": "Repeated credential failures from this transport source. Valid active credentials remain usable; this is failure-only retry backpressure, not a hard guess or request-volume limit.\n",
+            "headers": {
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Remaining cooldown in seconds, rounded up. Retry manually.",
+                "required": true
+              },
+              "Cache-Control": {
+                "schema": { "type": "string", "const": "no-store" },
+                "required": true
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string", "enum": ["too_many_requests"] },
+                    "message": { "type": "string", "enum": ["Authentication retry required"] }
+                  },
+                  "required": ["error", "message"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The owning plugin is inactive or unavailable.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PluginUnavailable" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/todos/{id}/completion": {
+      "post": {
+        "operationId": "postTodosByIdCompletion",
+        "summary": "Mark a to-do done. Idempotent: a to-do that is already done keeps its completedAt.",
+        "tags": ["todos"],
+        "parameters": [
+          { "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }
+        ],
+        "security": [{ "deviceKeyCookie": [] }],
+        "responses": {
+          "200": {
+            "description": "the done to-do",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Todo" } } }
+          },
+          "401": {
+            "description": "Missing, ambiguous or invalid API credential (shared authentication boundary).",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthUnauthorized" } }
+            }
+          },
+          "404": {
+            "description": "unknown to-do id",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "429": {
+            "description": "Repeated credential failures from this transport source. Valid active credentials remain usable; this is failure-only retry backpressure, not a hard guess or request-volume limit.\n",
+            "headers": {
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Remaining cooldown in seconds, rounded up. Retry manually.",
+                "required": true
+              },
+              "Cache-Control": {
+                "schema": { "type": "string", "const": "no-store" },
+                "required": true
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string", "enum": ["too_many_requests"] },
+                    "message": { "type": "string", "enum": ["Authentication retry required"] }
+                  },
+                  "required": ["error", "message"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The owning plugin is inactive or unavailable.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PluginUnavailable" } }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteTodosByIdCompletion",
+        "summary": "Reopen a to-do. Idempotent: an open to-do is returned unchanged.",
+        "tags": ["todos"],
+        "parameters": [
+          { "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }
+        ],
+        "security": [{ "deviceKeyCookie": [] }],
+        "responses": {
+          "200": {
+            "description": "the open to-do",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Todo" } } }
+          },
+          "401": {
+            "description": "Missing, ambiguous or invalid API credential (shared authentication boundary).",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthUnauthorized" } }
+            }
+          },
+          "404": {
+            "description": "unknown to-do id",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "429": {
+            "description": "Repeated credential failures from this transport source. Valid active credentials remain usable; this is failure-only retry backpressure, not a hard guess or request-volume limit.\n",
+            "headers": {
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Remaining cooldown in seconds, rounded up. Retry manually.",
+                "required": true
+              },
+              "Cache-Control": {
+                "schema": { "type": "string", "const": "no-store" },
+                "required": true
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string", "enum": ["too_many_requests"] },
+                    "message": { "type": "string", "enum": ["Authentication retry required"] }
+                  },
+                  "required": ["error", "message"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The owning plugin is inactive or unavailable.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PluginUnavailable" } }
+            }
+          }
+        }
+      }
+    },
     "/api/weather": {
       "get": {
         "operationId": "getWeather",
@@ -11286,6 +12179,10 @@
     {
       "name": "daily-messages",
       "description": "**Marplanner — Daily Messages API**\n\nPer-member daily messages with strict dates and text validation. Writes require an active member; reads preserve archived-member history and reject unknown members. The device-key cookie authorizes backend access."
+    },
+    {
+      "name": "todos",
+      "description": "**Marplanner — To-dos API**\n\nHousehold to-dos for the adults, grouped in lists, with an optional due date and an optional assignee. A write that changes the assignee requires an active member whose role is parent; reads return the stored member id even after that member is archived. Deleting a list deletes its to-dos. The device-key cookie authorizes backend access."
     },
     {
       "name": "daily-briefing",

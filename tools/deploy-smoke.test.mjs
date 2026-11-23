@@ -291,7 +291,7 @@ test("runSmoke skips routes of inactive plugins instead of failing", async () =>
 });
 
 test("the inactive-plugin code matches the server's plugin_unavailable response", () => {
-  const source = readFileSync(new URL("../src/server/plugins/http.ts", import.meta.url), "utf8");
+  const source = readFileSync(new URL("../src/shared/index.ts", import.meta.url), "utf8");
   assert.match(
     source,
     new RegExp(

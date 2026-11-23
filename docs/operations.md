@@ -207,7 +207,7 @@ All dated demo content is derived from the as-of date: calendar events, meals, d
 messages and chore-completion history fill the previous, current and next household
 weeks, and a rerun on a later date moves them forward and drops the stale rows.
 
-`npm run seed:public` selects only the public seed mode. Run it only against a disposable data directory, with synthetic values and the required configuration. Its final module activates all nine installed plugins through the normal lifecycle, preserving configured settings. Repeating the profile reactivates plugins disabled in the demo; it does not generate briefings, print, fetch feeds or execute scheduled jobs. `npm run seed` and `npm run seed:all` run public then private profiles, so private overlays run after demo activation. The private seed mode is for local overlays; never include its data in a public artifact. See [verification](quality/verification.md) before interpreting test results. Run the full verification tier on isolated synthetic data before accepting a release.
+`npm run seed:public` selects only the public seed mode. Run it only against a disposable data directory, with synthetic values and the required configuration. Its final module activates every installed plugin through the normal lifecycle, preserving configured settings. Repeating the profile reactivates plugins disabled in the demo; it does not generate briefings, print, fetch feeds or execute scheduled jobs. `npm run seed` and `npm run seed:all` run public then private profiles, so private overlays run after demo activation. The private seed mode is for local overlays; never include its data in a public artifact. See [verification](quality/verification.md) before interpreting test results. Run the full verification tier on isolated synthetic data before accepting a release.
 
 ## Plugins and integrations
 
@@ -292,6 +292,16 @@ WAL files from a live database or remove the sentinel to bypass an owner. Keep t
 original recovery materials until the restored instance and its household state
 have been verified. Re-running the same failed upgrade is not recovery: use a
 reviewed runtime/migration correction before restarting.
+
+A migration also binds the database to builds that ship it. The runner refuses a database whose
+ledger names a migration file the running build does not have (`Unsupported migration history.`),
+before it writes anything. Once `0003_todos.sql` has been applied, a build without that file,
+such as one from before the to-dos plugin, no longer starts on that database, whether or not the
+plugin was ever activated. Going back to such a build means restoring the recovery snapshot that
+was written just before the migration ran, with the offline procedure above; everything saved
+after that snapshot is lost. What happens when two lines of development both add a migration
+numbered `0003` is described under
+[forward migrations](architecture/database-lifecycle.md#forward-migrations).
 
 `VACUUM INTO` is a logical snapshot, not an exact physical-byte copy. It preserves
 explicit declared IDs but may change implicit SQLite rowids.

@@ -18,6 +18,7 @@ import { routinesRoutes } from "./routes/routines";
 import { remindersRoutes } from "./routes/reminders";
 import { mealsRoutes } from "./routes/meals";
 import { dailyMessagesRoutes } from "./routes/daily-messages";
+import { todosRoutes } from "./routes/todos";
 import { dailyBriefingRoutes } from "./routes/daily-briefing";
 import { telemetryRoutes } from "./routes/telemetry";
 import { backupsRoutes } from "./routes/backups";
@@ -202,6 +203,7 @@ export async function buildApp(opts?: BuildAppOptions): Promise<FastifyInstance>
         "meals-recipes": mealsRoutes,
         reminders: remindersRoutes,
         "daily-messages": dailyMessagesRoutes,
+        todos: todosRoutes,
         ...opts?.pluginRouteRegistrars,
       };
       for (const [pluginId, registerRoutes] of Object.entries(pluginRouteRegistrars) as Array<

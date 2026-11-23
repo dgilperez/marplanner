@@ -2,11 +2,12 @@
 
 Marplanner is a self-hosted household planner for a shared display. It combines
 calendar and external feeds, day periods, routines and chores, reminders, meals,
-daily messages, weather, spoken time, network devices, printing, daily briefings,
+to-dos for the adults, daily messages, weather, spoken time, network devices, printing, daily briefings,
 telemetry, and backup/restore. Optional features are installed plugins: activate
 them from Admin → Plugins before configuring their contributions.
 
-The family navigation provides Home, Calendar, Chores and Meals. Administration
+The family navigation provides Home, Calendar and Chores, plus Meals and To-dos while
+their plugins are active. Administration
 owns household settings, member profiles, content, integrations and recovery.
 English and Spanish are supported. External providers and physical devices need
 operator configuration; synthetic test success does not establish their availability.

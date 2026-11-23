@@ -119,8 +119,8 @@ describe("built foundation entrypoint", () => {
   it("serves reviewed core routes, isolates static assets, and drains both smoke writes on SIGINT", async () => {
     expect(existsSync(entry)).toBe(true);
     expect(expected.batch).toBe("BFULL");
-    expect(expected.installedPluginIds).toHaveLength(9);
-    expect(expected.familyRouteIds).toEqual(["home", "calendar", "chores", "meals"]);
+    expect(expected.installedPluginIds).toHaveLength(10);
+    expect(expected.familyRouteIds).toEqual(["home", "calendar", "chores", "meals", "todos"]);
     expect(expected.registeredJobIds).toHaveLength(8);
     const prepared = await prepare();
     const writePath = join(prepared.dataDir, "smoke.txt");

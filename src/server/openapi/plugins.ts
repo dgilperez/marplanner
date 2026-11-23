@@ -34,6 +34,7 @@ export const PluginId = component(
     "meals-recipes",
     "reminders",
     "daily-messages",
+    "todos",
   ])
 );
 
@@ -199,7 +200,7 @@ export const pluginsSchemas = defineRouteSchemas({
         description: "Authenticated catalog in manifest order",
         content: {
           "application/json": {
-            schema: z.strictObject({ plugins: z.array(PluginCatalogEntry).min(9).max(9) }),
+            schema: z.strictObject({ plugins: z.array(PluginCatalogEntry).min(10).max(10) }),
           },
         },
       },

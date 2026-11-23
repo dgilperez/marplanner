@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useTranslation } from "@/i18n";
-import { authFetch } from "@/lib/credential";
+import { apiFetch, jsonRequest, readJson } from "@/lib/api";
 import { todayInHouseholdTimezone } from "@/lib/household-date";
 import { useHouseholdSettings } from "@/lib/householdSettings";
 import { addCalendarDays, buildWeekDays } from "@/calendar/calendar-presentation";
@@ -43,22 +43,6 @@ export interface MealsWorkspaceState {
 }
 
 type WeekMenu = Record<string, Record<Slot, MenuItem[]>>;
-
-type FetchInit = Parameters<typeof fetch>[1];
-
-async function readJson<T>(url: string, init?: FetchInit): Promise<T> {
-  const response = await authFetch(url, { credentials: "include", ...init });
-  if (!response.ok) throw new Error(`${url}: ${response.status}`);
-  return (await response.json()) as T;
-}
-
-function requestInit(method: string, body: unknown): FetchInit {
-  return {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  };
-}
 
 export function useMealsWorkspace(): MealsWorkspaceState {
   const { t } = useTranslation();
@@ -184,13 +168,7 @@ export function useMealsWorkspace(): MealsWorkspaceState {
   const mutateEntry = useCallback(
     async (url: string, method: string, input?: unknown) => {
       try {
-        const response = await authFetch(
-          url,
-          input === undefined
-            ? { method, credentials: "include" }
-            : { ...requestInit(method, input), credentials: "include" }
-        );
-        if (!response.ok) throw new Error(`${url}: ${response.status}`);
+        await apiFetch(url, input === undefined ? { method } : jsonRequest(method, input));
         await refreshAfterMutation(false);
         return true;
       } catch {
@@ -217,11 +195,7 @@ export function useMealsWorkspace(): MealsWorkspaceState {
   const mutateRecipe = useCallback(
     async (url: string, method: string, input: unknown) => {
       try {
-        const response = await authFetch(url, {
-          ...requestInit(method, input),
-          credentials: "include",
-        });
-        if (!response.ok) throw new Error(`${url}: ${response.status}`);
+        await apiFetch(url, jsonRequest(method, input));
         await refreshAfterMutation(true);
         return true;
       } catch {

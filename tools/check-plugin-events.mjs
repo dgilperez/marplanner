@@ -14,6 +14,7 @@ export const PLUGIN_ROUTE_OWNERS = Object.freeze({
   "src/server/routes/meals.ts": "meals-recipes",
   "src/server/routes/reminders.ts": "reminders",
   "src/server/routes/daily-messages.ts": "daily-messages",
+  "src/server/routes/todos.ts": "todos",
 });
 
 export function loadEventProgram(root = process.cwd()) {

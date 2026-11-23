@@ -301,6 +301,8 @@ function backend(
         );
       if (url === "/api/members?lifecycle=all") return options.profiles?.() ?? json(members);
       if (url.startsWith("/api/calendar/events?")) return options.calendar?.() ?? json(events);
+      // The to-dos group of the agenda has its own suite (todos-agenda.test.tsx).
+      if (url.startsWith("/api/todos?")) return json([]);
       throw new Error(`Unexpected request: ${url}`);
     })
   );

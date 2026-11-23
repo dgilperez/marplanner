@@ -32,7 +32,7 @@ Kiosk Shell & Navigation is the always-on household client frame. It owns how th
 - **KIOSK-SHELL-NAVIGATION-INV-05** `/members` does not exist as a child-facing management route (`ADR-023`).
 - **KIOSK-SHELL-NAVIGATION-INV-06** Inactive plugins are invisible on every user-facing surface and absent from normal admin nav (`ADR-038`).
 - **KIOSK-SHELL-NAVIGATION-INV-07** The unauthenticated surface is health-only; the access gate (separate token) precedes the shell (`ADR-031`).
-- **KIOSK-SHELL-NAVIGATION-INV-08** Every provisioned family-facing route shares persistent navigation for dashboard, calendar, chores, and meals; administration lives only under the PIN-protected `/admin` subtree, and Daily Briefing has no family-facing route.
+- **KIOSK-SHELL-NAVIGATION-INV-08** Every provisioned family-facing route shares persistent navigation for dashboard, calendar, chores, and each active plugin page (meals, to-dos); administration lives only under the PIN-protected `/admin` subtree, and Daily Briefing has no family-facing route.
 
 ## Behaviors
 

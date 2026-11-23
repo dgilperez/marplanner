@@ -53,7 +53,7 @@ test("fresh lifecycle catalog keeps API and UI aligned across a repeat activatio
   await unlockAdmin(page, MP_ADMIN_PIN);
   await openAdminSection(page, "admin-nav-plugins");
   const rows = page.getByTestId(/^plugin-row-/);
-  await expect(rows).toHaveCount(9);
+  await expect(rows).toHaveCount(10);
   expect(
     await rows.evaluateAll((elements) => elements.map((element) => element.dataset.pluginId))
   ).toEqual(PLUGIN_IDS);
@@ -80,7 +80,7 @@ test("fresh lifecycle catalog keeps API and UI aligned across a repeat activatio
     expect((await activateResponse).status()).toBe(200);
     await expect(page.getByTestId("plugin-state-weather")).toHaveText(copy["plugins.state.active"]);
     await expectAdminSectionListed(page, "admin-nav-weather", true, "admin-nav-plugins");
-    await expect(page.getByTestId(/^plugin-row-/)).toHaveCount(9);
+    await expect(page.getByTestId(/^plugin-row-/)).toHaveCount(10);
     await expect(page.getByTestId("plugin-row-weather")).toHaveCount(1);
     await expect(
       weather.getByRole("button", {
@@ -108,7 +108,7 @@ test("fresh lifecycle catalog keeps API and UI aligned across a repeat activatio
       copy["plugins.state.inactive"]
     );
     await expectAdminSectionListed(page, "admin-nav-weather", false, "admin-nav-plugins");
-    await expect(page.getByTestId(/^plugin-row-/)).toHaveCount(9);
+    await expect(page.getByTestId(/^plugin-row-/)).toHaveCount(10);
     await expect(page.getByTestId("plugin-row-weather")).toHaveCount(1);
     await expect(
       weather.getByRole("button", {
@@ -123,6 +123,6 @@ test("fresh lifecycle catalog keeps API and UI aligned across a repeat activatio
 
   const finalCatalog = await readCatalog(page, server.origin);
   expect(finalCatalog.map(({ id }) => id)).toEqual(PLUGIN_IDS);
-  expect(finalCatalog).toHaveLength(9);
+  expect(finalCatalog).toHaveLength(10);
   await expect(page.getByTestId("plugin-row-weather")).toHaveCount(1);
 });

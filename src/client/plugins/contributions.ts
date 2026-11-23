@@ -18,10 +18,22 @@ export function isContributionActive(
   return plugin.contributions[group].includes(contributionId);
 }
 
-export function usePluginActive(pluginId: PluginId): boolean {
+/** Answers whether a plugin is active, for callers that gate several plugins in one render. */
+export function usePluginActivity(): (pluginId: PluginId) => boolean {
   const catalog = useOptionalPluginCatalog();
-  if (catalog === null) return true;
-  return catalog.status === "ready" && isContributionActive(catalog.plugins, pluginId);
+  return (pluginId) =>
+    catalog === null ||
+    (catalog.status === "ready" && isContributionActive(catalog.plugins, pluginId));
+}
+
+export function usePluginActive(pluginId: PluginId): boolean {
+  return usePluginActivity()(pluginId);
+}
+
+/** True while the first catalog read is pending: a contribution may still appear. A failed
+ * catalog is not pending; its contributions stay withdrawn until a retry succeeds. */
+export function usePluginCatalogPending(): boolean {
+  return useOptionalPluginCatalog()?.status === "loading";
 }
 
 export function usePluginContributionActive(

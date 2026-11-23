@@ -1,3 +1,4 @@
+import { PLUGIN_IDS } from "../../../shared/plugins";
 import type { DatabaseConnection } from "../client";
 
 export const DEMO_PROFILE = "simpsons-demo";
@@ -12,17 +13,6 @@ const LIFECYCLE_TABLES = new Set([
   "plugin_lifecycle_operations",
   "plugin_migration_journal",
 ]);
-const PLUGIN_IDS = [
-  "daily-briefing",
-  "printing",
-  "weather",
-  "time-announcements",
-  "backups",
-  "network-devices",
-  "meals-recipes",
-  "reminders",
-  "daily-messages",
-] as const;
 
 export const DEMO_SETTINGS_OBJECT_NAMES = [
   "locale",
