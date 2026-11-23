@@ -11,7 +11,12 @@ import {
 
 import { authFetch } from "@/lib/credential";
 import { log } from "@/lib/logger";
-import { PLUGIN_IDS, type PluginCatalogEntry, type PluginId } from "../../shared/plugins";
+import {
+  isExtensionId,
+  PLUGIN_IDS,
+  type PluginCatalogEntry,
+  type PluginId,
+} from "../../shared/plugins";
 
 type CatalogStatus = "loading" | "ready" | "error";
 
@@ -75,11 +80,13 @@ function isCatalogEntry(value: unknown): value is PluginCatalogEntry {
   const safeError = candidate.error === null || isSafePublicError(candidate.error);
   return (
     typeof candidate.id === "string" &&
-    EXPECTED_IDS.has(candidate.id) &&
+    // A first-party id is first-party and an extension id is an extension (ADR-068); the tier
+    // cannot be claimed across the two id spaces.
+    ((EXPECTED_IDS.has(candidate.id) && candidate.trustTier === "first-party") ||
+      (isExtensionId(candidate.id) && candidate.trustTier === "extension")) &&
     (candidate.state === "active" ||
       candidate.state === "inactive" ||
       candidate.state === "errored") &&
-    candidate.trustTier === "first-party" &&
     candidate.contributions !== null &&
     typeof candidate.contributions === "object" &&
     Array.isArray(candidate.requirements) &&
@@ -93,12 +100,16 @@ function parseCatalog(value: unknown): readonly PluginCatalogEntry[] | null {
   const plugins = (value as { plugins?: unknown }).plugins;
   if (
     !Array.isArray(plugins) ||
-    plugins.length !== PLUGIN_IDS.length ||
+    plugins.length < PLUGIN_IDS.length ||
     !plugins.every(isCatalogEntry)
   ) {
     return null;
   }
-  if (plugins.some((plugin, index) => plugin.id !== PLUGIN_IDS[index])) return null;
+  // The nine first-party plugins in manifest order, then each build-time extension once.
+  if (PLUGIN_IDS.some((id, index) => plugins[index]?.id !== id)) return null;
+  const extensionIds = plugins.slice(PLUGIN_IDS.length).map((plugin) => plugin.id);
+  if (!extensionIds.every(isExtensionId)) return null;
+  if (new Set(extensionIds).size !== extensionIds.length) return null;
   return plugins;
 }
 

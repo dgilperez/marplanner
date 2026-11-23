@@ -5,6 +5,8 @@ import type { Socket } from "node:net";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import fastifyStatic from "@fastify/static";
 import { authBoundary, classifyApiRequest } from "./auth/boundary";
+import { COMPOSED_EXTENSIONS } from "./extensions/composed";
+import { extensionRoutePrefix, type ServerExtension } from "./extensions/index";
 import { isQuiesced, beginRequest, endRequest, RESTORE_ROUTE_PATH } from "./backups/restore";
 import { healthRoutes } from "./routes/health";
 import { provisionRoutes } from "./routes/provision";
@@ -58,6 +60,8 @@ export interface BuildAppOptions {
   calendarFeed?: CalendarFeedDependencies;
   pluginLifecycle?: PluginLifecycle;
   pluginRouteRegistrars?: Partial<Record<PluginId, PluginRouteRegistrar>>;
+  /** Defaults to the extensions composed into this build (ADR-068). */
+  extensions?: readonly ServerExtension[];
 }
 
 export async function buildApp(opts?: BuildAppOptions): Promise<FastifyInstance> {
@@ -208,6 +212,13 @@ export async function buildApp(opts?: BuildAppOptions): Promise<FastifyInstance>
         [PluginId, PluginRouteRegistrar]
       >) {
         await registerPluginHttp(app, pluginLifecycle, pluginId, registerRoutes);
+      }
+      for (const extension of opts?.extensions ?? COMPOSED_EXTENSIONS) {
+        const { routes, manifest } = extension;
+        if (routes === undefined) continue;
+        await registerPluginHttp(app, pluginLifecycle, manifest.id, async (pluginScope) => {
+          await pluginScope.register(routes, { prefix: extensionRoutePrefix(manifest.id) });
+        });
       }
       await pluginRoutes(app, pluginLifecycle);
       await openApiDocsRoutes(app);

@@ -5,6 +5,7 @@
 import { z } from "zod";
 import { component, defineRouteSchemas, noContent, type RouteResponse } from "./zod";
 import { authenticationBackoffResponse } from "./common";
+import { EXTENSION_ID_PATTERN } from "../../shared/plugins";
 
 export const ApiError = component(
   "ApiError",
@@ -22,18 +23,22 @@ export const ForbiddenError = component(
   z.strictObject({ error: z.literal("forbidden"), message: z.string(), code: z.string() })
 );
 
+/** First-party ids are a closed set; a build-time extension id carries the `ext-` prefix (ADR-068). */
 export const PluginId = component(
   "PluginId",
-  z.enum([
-    "daily-briefing",
-    "printing",
-    "weather",
-    "time-announcements",
-    "backups",
-    "network-devices",
-    "meals-recipes",
-    "reminders",
-    "daily-messages",
+  z.union([
+    z.enum([
+      "daily-briefing",
+      "printing",
+      "weather",
+      "time-announcements",
+      "backups",
+      "network-devices",
+      "meals-recipes",
+      "reminders",
+      "daily-messages",
+    ]),
+    z.string().regex(EXTENSION_ID_PATTERN),
   ])
 );
 
@@ -113,7 +118,7 @@ export const PluginCatalogEntry = component(
     id: PluginId,
     label: z.string().min(1),
     description: z.string().min(1),
-    trustTier: z.literal("first-party"),
+    trustTier: z.enum(["first-party", "extension"]),
     contributions: PluginContributionSummary,
     requirements: z.array(z.string().min(1)).meta({ uniqueItems: true }),
     settingsSchema: z.array(PluginSettingDescriptor),
@@ -192,14 +197,15 @@ export const pluginsSchemas = defineRouteSchemas({
   listPlugins: {
     operationId: "listPlugins",
     tags: ["plugins"],
-    summary: "List the exact delivered first-party plugin catalog",
+    summary: "List the delivered plugin catalog: first-party plugins, then build-time extensions",
     security: [{ deviceKeyCookie: [] }, { integrationKey: [] }],
     response: {
       200: {
         description: "Authenticated catalog in manifest order",
         content: {
           "application/json": {
-            schema: z.strictObject({ plugins: z.array(PluginCatalogEntry).min(9).max(9) }),
+            // The nine first-party plugins, then the extensions composed into the build (ADR-068).
+            schema: z.strictObject({ plugins: z.array(PluginCatalogEntry).min(9) }),
           },
         },
       },

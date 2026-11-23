@@ -12,10 +12,23 @@ export const PLUGIN_IDS = Object.freeze([
   "daily-messages",
 ] as const);
 
-export type PluginId = (typeof PLUGIN_IDS)[number];
+/** The closed first-party cohort. Exhaustive core maps are keyed by this type. */
+export type CorePluginId = (typeof PLUGIN_IDS)[number];
+
+/** Extensions are composed at build time from outside the core tree (ADR-068). The `ext-` prefix
+ * keeps the first-party id space closed and shows the origin in the registry, the API and logs.
+ */
+export type ExtensionId = `ext-${string}`;
+export const EXTENSION_ID_PATTERN = /^ext-[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export function isExtensionId(value: string): value is ExtensionId {
+  return EXTENSION_ID_PATTERN.test(value);
+}
+
+export type PluginId = CorePluginId | ExtensionId;
 export type PluginState = "active" | "inactive" | "errored";
 export type PluginTargetState = "active" | "inactive";
-export type PluginTrustTier = "first-party";
+export type PluginTrustTier = "first-party" | "extension";
 export type PluginLifecycleCapability = "activate" | "deactivate";
 export type PluginSettingValueType = "string" | "number" | "boolean" | "enum" | "object";
 export type PluginServiceRuntime = "server" | "browser";
@@ -91,7 +104,7 @@ export interface PluginManifest {
   readonly settingsSchema: readonly PluginSettingDescriptor[];
   readonly dataNamespace: string;
   readonly runtimeAdapterKey: PluginId;
-  readonly adr029Classification: "plugin";
+  readonly adr029Classification: "plugin" | "extension";
   readonly lifecycleCapabilities: readonly PluginLifecycleCapability[];
 }
 

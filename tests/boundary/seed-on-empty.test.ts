@@ -338,6 +338,34 @@ describe("seed on empty against a real database", () => {
     ).resolves.toMatchObject({ status: "complete" });
   });
 
+  it("seeds a database whose registry holds a build-time extension, and still refuses its data", async () => {
+    const db = getDb();
+    const base = {
+      mode: "public",
+      asOfDate: AS_OF_DATE,
+      nowMs: NOW,
+      disposableTarget: true,
+      serverBoot: true,
+    } as const;
+    // The row an extension-bearing build adds at runtime assembly (ADR-068).
+    db.prepare(
+      `INSERT INTO plugin_activation_registry
+         (plugin_id, state, activated_at, updated_at, error_code, error_message)
+       VALUES ('ext-example', 'inactive', NULL, '2026-09-27T10:15:30.000Z', NULL, NULL)`
+    ).run();
+    db.exec("CREATE TABLE ext_example_notes (id TEXT PRIMARY KEY NOT NULL)");
+
+    db.prepare("INSERT INTO ext_example_notes (id) VALUES ('household-note')").run();
+    await expect(
+      runSeedProfile({ ...base, modules: [memberModule("public:one", "one")] })
+    ).rejects.toThrow("unrelated row in ext_example_notes");
+
+    db.prepare("DELETE FROM ext_example_notes").run();
+    await expect(
+      runSeedProfile({ ...base, modules: [memberModule("public:one", "one")] })
+    ).resolves.toMatchObject({ status: "complete" });
+  });
+
   it("discards a boot seed whose own module wrote outside the demo inventory", async () => {
     const strayRow: SeedModule = {
       id: "public:stray",

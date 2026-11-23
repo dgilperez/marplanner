@@ -10,11 +10,16 @@
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
-    "types": ["node", "better-sqlite3"]
+    "types": ["node", "better-sqlite3"],
+    "paths": {
+      "@marplanner/extension": ["./src/server/extensions/index.ts"],
+      "@marplanner/host-api": ["./src/server/host-api/index.ts"]
+    }
   },
   "include": [
     "src/server/**/*.ts",
     "src/shared/**/*.ts",
+    "examples/extensions/**/*.ts",
     "tests/boundary/**/*.ts",
     "tests/integration/**/*.ts",
     "tests/helpers/**/*.ts"

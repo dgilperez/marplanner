@@ -1,4 +1,5 @@
 import type { DatabaseConnection } from "../client";
+import { isExtensionId } from "../../../shared/plugins";
 
 export const DEMO_PROFILE = "simpsons-demo";
 export const DEMO_PROFILE_VERSION = 1;
@@ -280,11 +281,15 @@ function assertLifecycleMetadata(db: DatabaseConnection): void {
     throw new SeedOwnershipError("Seed target has invalid installation_lineage metadata");
   }
 
+  // A build-time extension adds its own registry row (ADR-068). The row is lifecycle metadata,
+  // like the nine below; the extension's tables are still scanned for unrelated rows.
   const pluginIds = (
     db.prepare("SELECT plugin_id FROM plugin_activation_registry ORDER BY plugin_id").all() as {
       plugin_id: string;
     }[]
-  ).map(({ plugin_id }) => plugin_id);
+  )
+    .map(({ plugin_id }) => plugin_id)
+    .filter((pluginId) => !isExtensionId(pluginId));
   const expectedPluginIds = [...PLUGIN_IDS].sort();
   if (JSON.stringify(pluginIds) !== JSON.stringify(expectedPluginIds)) {
     throw new SeedOwnershipError("Seed target has invalid plugin_activation_registry metadata");

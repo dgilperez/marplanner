@@ -1823,7 +1823,7 @@
           "id": { "$ref": "#/components/schemas/PluginId" },
           "label": { "type": "string", "minLength": 1 },
           "description": { "type": "string", "minLength": 1 },
-          "trustTier": { "type": "string", "const": "first-party" },
+          "trustTier": { "type": "string", "enum": ["first-party", "extension"] },
           "contributions": { "$ref": "#/components/schemas/PluginContributionSummary" },
           "requirements": {
             "type": "array",
@@ -1894,17 +1894,22 @@
         "additionalProperties": false
       },
       "PluginId": {
-        "type": "string",
-        "enum": [
-          "daily-briefing",
-          "printing",
-          "weather",
-          "time-announcements",
-          "backups",
-          "network-devices",
-          "meals-recipes",
-          "reminders",
-          "daily-messages"
+        "anyOf": [
+          {
+            "type": "string",
+            "enum": [
+              "daily-briefing",
+              "printing",
+              "weather",
+              "time-announcements",
+              "backups",
+              "network-devices",
+              "meals-recipes",
+              "reminders",
+              "daily-messages"
+            ]
+          },
+          { "type": "string", "pattern": "^ext-[a-z0-9]+(?:-[a-z0-9]+)*$" }
         ]
       },
       "PluginLifecycleFailed": {
@@ -8135,7 +8140,7 @@
     "/api/plugins": {
       "get": {
         "operationId": "listPlugins",
-        "summary": "List the exact delivered first-party plugin catalog",
+        "summary": "List the delivered plugin catalog: first-party plugins, then build-time extensions",
         "tags": ["plugins"],
         "security": [{ "deviceKeyCookie": [] }, { "integrationKey": [] }],
         "responses": {
@@ -8148,7 +8153,6 @@
                   "properties": {
                     "plugins": {
                       "minItems": 9,
-                      "maxItems": 9,
                       "type": "array",
                       "items": { "$ref": "#/components/schemas/PluginCatalogEntry" }
                     }

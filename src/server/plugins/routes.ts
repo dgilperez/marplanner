@@ -1,6 +1,11 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { requireFullAccess } from "../auth/capability.js";
-import { PLUGIN_IDS, type PluginCatalogEntry, type PluginId } from "../../shared/plugins.js";
+import {
+  isExtensionId,
+  PLUGIN_IDS,
+  type PluginCatalogEntry,
+  type PluginId,
+} from "../../shared/plugins.js";
 import { PluginLifecycleBusyError } from "./errors.js";
 import type { PluginLifecycle } from "./lifecycle.js";
 import { pluginsSchemas } from "../openapi/plugins.js";
@@ -15,9 +20,29 @@ const FAULT_CODES: ReadonlySet<string> = new Set([
 function pluginIdFrom(params: unknown): PluginId | null {
   if (params === null || typeof params !== "object") return null;
   const pluginId = (params as { pluginId?: unknown }).pluginId;
-  return typeof pluginId === "string" && PLUGIN_ID_SET.has(pluginId)
+  return typeof pluginId === "string" && (PLUGIN_ID_SET.has(pluginId) || isExtensionId(pluginId))
     ? (pluginId as PluginId)
     : null;
+}
+
+type PluginLookup =
+  | { readonly kind: "found"; readonly plugin: PluginCatalogEntry }
+  | { readonly kind: "not-found" }
+  | { readonly kind: "unavailable" };
+
+/** A first-party id is always in the catalog, so a missing entry means the catalog failed. An
+ * extension id is only known when its extension is in this build (ADR-068).
+ */
+async function lookupPlugin(lifecycle: PluginLifecycle, pluginId: PluginId): Promise<PluginLookup> {
+  const plugin = await snapshotPlugin(lifecycle, pluginId);
+  if (plugin !== null) return { kind: "found", plugin };
+  if (!isExtensionId(pluginId)) return { kind: "unavailable" };
+  try {
+    await lifecycle.listCatalog();
+    return { kind: "not-found" };
+  } catch {
+    return { kind: "unavailable" };
+  }
 }
 
 function sendPluginNotFound(reply: FastifyReply) {
@@ -91,8 +116,10 @@ export async function pluginRoutes(
       async (request, reply) => {
         const pluginId = pluginIdFrom(request.params);
         if (pluginId === null) return sendPluginNotFound(reply);
-        const snapshot = await snapshotPlugin(lifecycle, pluginId);
-        if (snapshot === null) return sendCatalogUnavailable(reply);
+        const lookup = await lookupPlugin(lifecycle, pluginId);
+        if (lookup.kind === "not-found") return sendPluginNotFound(reply);
+        if (lookup.kind === "unavailable") return sendCatalogUnavailable(reply);
+        const snapshot = lookup.plugin;
         try {
           const plugin = await lifecycle[target](pluginId);
           return reply.code(200).send(plugin);
@@ -120,8 +147,10 @@ export async function pluginRoutes(
           message: "The plugin fault report is invalid.",
         });
       }
-      const snapshot = await snapshotPlugin(lifecycle, pluginId);
-      if (snapshot === null) return sendCatalogUnavailable(reply);
+      const lookup = await lookupPlugin(lifecycle, pluginId);
+      if (lookup.kind === "not-found") return sendPluginNotFound(reply);
+      if (lookup.kind === "unavailable") return sendCatalogUnavailable(reply);
+      const snapshot = lookup.plugin;
       try {
         await lifecycle.reportFault(pluginId, fault);
         return reply.code(204).send();

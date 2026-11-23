@@ -142,7 +142,13 @@ function assertCompleteLifecycleMetadata(db: ReturnType<typeof import("better-sq
   const lineage = db.prepare("SELECT COUNT(*) AS count FROM installation_lineage").get() as {
     count: number;
   };
-  const registry = db.prepare("SELECT COUNT(*) AS count FROM plugin_activation_registry").get() as {
+  // Extension rows (ADR-068) are added after migration, at runtime assembly; the migration history
+  // is complete when the nine first-party rows exist.
+  const registry = db
+    .prepare(
+      "SELECT COUNT(*) AS count FROM plugin_activation_registry WHERE plugin_id NOT LIKE 'ext-%'"
+    )
+    .get() as {
     count: number;
   };
   if (lineage.count !== 1 || registry.count !== 9) {

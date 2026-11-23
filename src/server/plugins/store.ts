@@ -1,5 +1,6 @@
 import type { DatabaseConnection } from "../db/client.js";
 import type {
+  ExtensionId,
   PluginId,
   PluginPublicError,
   PluginState,
@@ -34,6 +35,13 @@ export interface PluginLifecycleOperation {
   readonly updatedAt: string;
 }
 
+/** The part of an async migration after its first await would run outside the transaction. */
+function assertSynchronousMigration(apply: () => undefined): void {
+  if (apply.constructor.name === "AsyncFunction") {
+    throw new TypeError("Plugin migrations must be synchronous.");
+  }
+}
+
 export class SqlitePluginLifecycleStore {
   constructor(private readonly dbSource: DatabaseConnection | (() => DatabaseConnection)) {}
 
@@ -47,9 +55,7 @@ export class SqlitePluginLifecycleStore {
     appliedAt: string,
     apply: () => undefined
   ): boolean {
-    if (apply.constructor.name === "AsyncFunction") {
-      throw new TypeError("Plugin migrations must be synchronous.");
-    }
+    assertSynchronousMigration(apply);
     return this.db.transaction(() => {
       const journaled = this.db
         .prepare(
@@ -70,6 +76,71 @@ export class SqlitePluginLifecycleStore {
         .run(pluginId, migrationId, appliedAt);
       return true;
     })();
+  }
+
+  /** Runs an extension migration under the same journal as a first-party one, and rejects it when
+   * it creates, alters or drops a table, index, view or trigger outside the tables prefixed with
+   * the extension's data namespace. The check runs inside the migration's transaction, so such a
+   * change rolls back. It catches mistakes, not hostile code: an extension reaches the shared
+   * database handle through the host API, so it can still change rows in any table or use the
+   * temp schema.
+   */
+  applyExtensionMigration(
+    pluginId: ExtensionId,
+    dataNamespace: string,
+    migrationId: string,
+    appliedAt: string,
+    apply: () => undefined
+  ): boolean {
+    // applyPluginMigration only sees the schema-checking wrapper below, so check `apply` itself.
+    assertSynchronousMigration(apply);
+    const foreignSchema = (): string =>
+      JSON.stringify(
+        this.db
+          .prepare(
+            `SELECT type, name, tbl_name AS tableName, sql
+             FROM sqlite_schema
+             WHERE substr(tbl_name, 1, length(?)) <> ?
+               -- SQLite's own bookkeeping, e.g. sqlite_sequence for the first AUTOINCREMENT table.
+               AND tbl_name NOT LIKE 'sqlite\\_%' ESCAPE '\\'
+             ORDER BY type, name`
+          )
+          .all(`${dataNamespace}_`, `${dataNamespace}_`)
+      );
+    return this.applyPluginMigration(pluginId, migrationId, appliedAt, () => {
+      const before = foreignSchema();
+      const result = apply();
+      if (foreignSchema() !== before) {
+        throw new Error(
+          `Extension ${pluginId} migration ${migrationId} changed schema outside ${dataNamespace}_*.`
+        );
+      }
+      return result;
+    });
+  }
+
+  listExtensionRegistryIds(): string[] {
+    return (
+      this.db
+        .prepare(
+          "SELECT plugin_id AS id FROM plugin_activation_registry WHERE plugin_id LIKE 'ext-%' ORDER BY plugin_id"
+        )
+        .all() as Array<{ id: string }>
+    ).map(({ id }) => id);
+  }
+
+  /** Extensions are not seeded by a migration: their row is added, inactive, the first time a
+   * build that contains them assembles its runtime (ADR-068). Existing rows are left untouched.
+   */
+  ensureExtensionRegistryRow(pluginId: ExtensionId, now: string): void {
+    this.db
+      .prepare(
+        `INSERT INTO plugin_activation_registry
+           (plugin_id, state, activated_at, updated_at, error_code, error_message)
+         VALUES (?, 'inactive', NULL, ?, NULL, NULL)
+         ON CONFLICT (plugin_id) DO NOTHING`
+      )
+      .run(pluginId, now);
   }
 
   getRegistry(pluginId: PluginId): PluginRegistryRecord {

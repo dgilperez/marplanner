@@ -5,6 +5,7 @@
 import { build } from "esbuild";
 import { cpSync, mkdirSync } from "node:fs";
 import { resolveBuildInfo } from "./build-info.mjs";
+import { extensionBundlePlugin } from "./extension-bundle-plugin.mjs";
 import { assertNoPrivateInputs, seedBundlePlugin } from "./seed-bundle-plugin.mjs";
 import { writeLicenses } from "./bundled-licenses.mjs";
 
@@ -31,7 +32,8 @@ const server = await build({
   // The admin overview compares this with the commit stamped into the client bundle.
   define: { __MP_BUILD__: JSON.stringify(resolveBuildInfo()) },
   // Public seeds for MP_SEED_ON_EMPTY; see the plugin for why they share this bundle.
-  plugins: [seedBundlePlugin()],
+  // Build-time extensions from MP_EXTENSIONS_DIR (ADR-068); none unless the variable is set.
+  plugins: [seedBundlePlugin(), extensionBundlePlugin()],
   metafile: true,
 });
 assertNoPrivateInputs(server.metafile);

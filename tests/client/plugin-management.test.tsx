@@ -5,7 +5,12 @@ import { messages } from "@/i18n/messages";
 import { PluginCatalogProvider } from "@/plugins/PluginCatalogProvider";
 import { PluginHealthIndicator } from "@/plugins/PluginHealthIndicator";
 import { PluginManagement } from "@/plugins/PluginManagement";
-import type { PluginCatalogEntry, PluginId, PluginState } from "../../src/shared/plugins";
+import type {
+  CorePluginId,
+  ExtensionId,
+  PluginCatalogEntry,
+  PluginState,
+} from "../../src/shared/plugins";
 
 const IDS = [
   "daily-briefing",
@@ -19,7 +24,7 @@ const IDS = [
   "daily-messages",
 ] as const;
 
-const LABEL_KEYS: Record<PluginId, string> = {
+const LABEL_KEYS: Record<CorePluginId, string> = {
   "daily-briefing": "plugins.dailyBriefing.label",
   printing: "plugins.printing.label",
   weather: "plugins.weather.label",
@@ -31,7 +36,7 @@ const LABEL_KEYS: Record<PluginId, string> = {
   "daily-messages": "plugins.dailyMessages.label",
 };
 
-function entry(id: PluginId, state: PluginState = "inactive"): PluginCatalogEntry {
+function entry(id: CorePluginId, state: PluginState = "inactive"): PluginCatalogEntry {
   return {
     id,
     label: LABEL_KEYS[id],
@@ -66,6 +71,25 @@ function entry(id: PluginId, state: PluginState = "inactive"): PluginCatalogEntr
       state === "errored"
         ? { code: "migration_failed", message: "Plugin data could not be prepared." }
         : null,
+  };
+}
+
+function extensionEntry(id: ExtensionId, state: PluginState = "inactive"): PluginCatalogEntry {
+  return {
+    ...entry("backups", state),
+    id,
+    label: `ext.${id}.label`,
+    description: `ext.${id}.description`,
+    trustTier: "extension",
+    contributions: {
+      routes: [`${id}-api`],
+      admin: [],
+      settings: [],
+      widgets: [],
+      services: [],
+      jobs: [],
+    },
+    requirements: [],
   };
 }
 
@@ -115,6 +139,61 @@ describe("Plugin Management", () => {
     expect(visible).not.toContain("weatherLat");
     expect(visible).not.toContain("41.3874");
     expect(visible).not.toContain("mpk-");
+  });
+
+  it("lists build-time extensions after the nine plugins, named by id, in their own trust tier", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        response({ plugins: [...IDS.map((id) => entry(id)), extensionEntry("ext-tasks")] })
+      )
+    );
+    renderCatalog();
+
+    const rows = await screen.findAllByTestId(/^plugin-row-/);
+    expect(rows.map((row) => row.getAttribute("data-plugin-id"))).toEqual([...IDS, "ext-tasks"]);
+    const extension = screen.getByTestId("plugin-row-ext-tasks");
+    expect(extension).toHaveTextContent("ext-tasks");
+    expect(extension).toHaveTextContent("Extension");
+    expect(extension).toHaveTextContent("Inactive");
+    expect(extension).not.toHaveTextContent("First-party");
+    expect(rows[0]).toHaveTextContent("First-party");
+    expect(document.body.textContent ?? "").not.toContain("ext.ext-tasks.label");
+  });
+
+  it.each([
+    [
+      "an extension listed before a first-party plugin",
+      [extensionEntry("ext-tasks"), ...IDS.map((id) => entry(id))],
+    ],
+    [
+      "an extension id in the first-party tier",
+      [...IDS.map((id) => entry(id)), { ...extensionEntry("ext-tasks"), trustTier: "first-party" }],
+    ],
+    [
+      "a first-party id in the extension tier",
+      [
+        ...IDS.slice(0, 8).map((id) => entry(id)),
+        { ...entry("daily-messages"), trustTier: "extension" },
+      ],
+    ],
+    [
+      "the same extension twice",
+      [...IDS.map((id) => entry(id)), extensionEntry("ext-tasks"), extensionEntry("ext-tasks")],
+    ],
+    [
+      "an id that is neither first-party nor an extension id",
+      [...IDS.map((id) => entry(id)), { ...extensionEntry("ext-tasks"), id: "tasks" }],
+    ],
+  ])("rejects a catalog with %s", async (_label, plugins) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => response({ plugins }))
+    );
+    renderCatalog();
+
+    await screen.findByText(messages.en["plugins.loadError"]);
+    expect(screen.queryAllByTestId(/^plugin-row-/)).toHaveLength(0);
   });
 
   it("uses only the authenticated session and never sends client PIN state", async () => {

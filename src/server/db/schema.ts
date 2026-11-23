@@ -1019,7 +1019,8 @@ export const installationLineage = sqliteTable(
   })
 );
 
-/** The sole canonical active/inactive/errored record for the closed first-party plugin cohort. */
+/** The sole canonical active/inactive/errored record for the closed first-party plugin cohort and
+ * for build-time extensions, whose ids carry the `ext-` prefix (ADR-068). */
 export const pluginActivationRegistry = sqliteTable(
   "plugin_activation_registry",
   {
@@ -1033,7 +1034,7 @@ export const pluginActivationRegistry = sqliteTable(
   (table) => ({
     pluginIdCheck: check(
       "plugin_activation_registry_plugin_id_check",
-      sql`${table.pluginId} IN ('daily-briefing', 'printing', 'weather', 'time-announcements', 'backups', 'network-devices', 'meals-recipes', 'reminders', 'daily-messages')`
+      sql`${table.pluginId} IN ('daily-briefing', 'printing', 'weather', 'time-announcements', 'backups', 'network-devices', 'meals-recipes', 'reminders', 'daily-messages') OR (${table.pluginId} GLOB 'ext-[a-z0-9]*' AND ${table.pluginId} NOT GLOB '*[^a-z0-9-]*' AND ${table.pluginId} NOT GLOB '*--*' AND ${table.pluginId} NOT GLOB '*-')`
     ),
     stateCheck: check(
       "plugin_activation_registry_state_check",

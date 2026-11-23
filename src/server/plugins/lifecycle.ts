@@ -4,6 +4,7 @@ import type {
   PluginState,
   PluginTargetState,
 } from "../../shared/plugins.js";
+import { isExtensionId } from "../../shared/plugins.js";
 import { projectManifestContributions } from "./manifest.js";
 import { PluginLifecycleBusyError, PluginLifecycleError, SAFE_LIFECYCLE_ERRORS } from "./errors.js";
 import type { PluginDrainDeadline, PluginRuntimeAdapter } from "./runtime.js";
@@ -324,6 +325,9 @@ export function createPluginLifecycle(_options: PluginLifecycleOptions): PluginL
       const results: Array<{ pluginId: PluginId; state: PluginState }> = [];
       let persistenceFailure: PluginLifecycleError | null = null;
       for (const operation of persist(() => store.listOperations())) {
+        // An extension that is no longer in the build keeps its registry row, its data and any
+        // interrupted operation untouched until a build that contains it runs again (ADR-068).
+        if (isExtensionId(operation.pluginId) && !adapters.has(operation.pluginId)) continue;
         const adapter = adapterFor(operation.pluginId);
         try {
           await (operation.targetState === "active"

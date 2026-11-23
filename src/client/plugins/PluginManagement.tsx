@@ -7,15 +7,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useT } from "@/i18n";
 import { cn } from "@/lib/utils";
 import type { MessageKey } from "@/i18n/messages";
-import type {
-  PluginCatalogEntry,
-  PluginContributionSummary,
-  PluginId,
-  PluginPublicErrorCode,
+import {
+  isExtensionId,
+  type CorePluginId,
+  type PluginCatalogEntry,
+  type PluginContributionSummary,
+  type PluginPublicErrorCode,
 } from "../../shared/plugins";
 import { usePluginCatalog, type PluginCatalogFeedbackCode } from "./PluginCatalogProvider";
 
-const PLUGIN_COPY: Record<PluginId, { label: MessageKey; description: MessageKey }> = {
+const PLUGIN_COPY: Record<CorePluginId, { label: MessageKey; description: MessageKey }> = {
   "daily-briefing": {
     label: "plugins.dailyBriefing.label",
     description: "plugins.dailyBriefing.description",
@@ -86,8 +87,10 @@ function CatalogRow({ plugin }: { plugin: PluginCatalogEntry }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   // StatusToggle takes no ref, so focus goes through the box that holds it.
   const actionBoxRef = useRef<HTMLDivElement>(null);
-  const copy = PLUGIN_COPY[plugin.id];
-  const label = t(copy.label);
+  // An extension is named by its id until extension translations exist (ADR-068 section 6).
+  const copy = isExtensionId(plugin.id) ? null : PLUGIN_COPY[plugin.id];
+  const label = copy === null ? plugin.id : t(copy.label);
+  const description = t(copy === null ? "plugins.extension.description" : copy.description);
   const busy = plugin.operation !== null;
   const action = plugin.state === "active" ? "deactivate" : "activate";
   const currentFeedback = feedback[plugin.id];
@@ -122,7 +125,7 @@ function CatalogRow({ plugin }: { plugin: PluginCatalogEntry }) {
               {label}
             </h2>
           </CardTitle>
-          <CardDescription className="wrap-anywhere">{t(copy.description)}</CardDescription>
+          <CardDescription className="wrap-anywhere">{description}</CardDescription>
         </div>
         <div ref={actionBoxRef} className="flex flex-col items-start gap-2 sm:items-end">
           <StatusToggle
@@ -157,7 +160,13 @@ function CatalogRow({ plugin }: { plugin: PluginCatalogEntry }) {
         <dl className="grid min-w-0 gap-3 sm:grid-cols-2">
           <div>
             <dt className="font-medium">{t("plugins.trust.label")}</dt>
-            <dd>{t("plugins.trust.firstParty")}</dd>
+            <dd>
+              {t(
+                plugin.trustTier === "extension"
+                  ? "plugins.trust.extension"
+                  : "plugins.trust.firstParty"
+              )}
+            </dd>
           </div>
           <div className="min-w-0">
             <dt className="font-medium">{t("plugins.requirements")}</dt>

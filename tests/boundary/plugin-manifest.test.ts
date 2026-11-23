@@ -247,6 +247,9 @@ const PROHIBITED_API_SHAPES = [
 
 const EXPECTED_SOURCE_EXPORTS = {
   "src/shared/plugins.ts": [
+    "CorePluginId",
+    "EXTENSION_ID_PATTERN",
+    "ExtensionId",
     "PLUGIN_IDS",
     "PluginCatalogEntry",
     "PluginContentSourceId",
@@ -268,6 +271,7 @@ const EXPECTED_SOURCE_EXPORTS = {
     "PluginState",
     "PluginTargetState",
     "PluginTrustTier",
+    "isExtensionId",
   ],
   "src/server/plugins/manifest.ts": ["PLUGIN_MANIFESTS", "projectManifestContributions"],
 } as const;

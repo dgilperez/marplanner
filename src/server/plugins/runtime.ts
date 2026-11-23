@@ -1,4 +1,6 @@
 import type { PluginId, PluginJobId, PluginManifest } from "../../shared/plugins.js";
+import { COMPOSED_EXTENSIONS } from "../extensions/composed.js";
+import { assertComposableExtensions, type ServerExtension } from "../extensions/index.js";
 import { ensurePluginSettingsDefaults } from "../modules/settings/index.js";
 import {
   configurePrintingPluginLifecycleGate,
@@ -89,6 +91,8 @@ export interface ServerPluginRuntimeOptions {
     deadline: PluginDrainDeadline
   ) => Promise<"drained" | "expired">;
   readonly drainPrintingClaims?: (deadline: PluginDrainDeadline) => Promise<"drained" | "expired">;
+  /** Defaults to the extensions composed into this build (ADR-068). */
+  readonly extensions?: readonly ServerExtension[];
 }
 
 export interface ServerPluginRuntime {
@@ -147,6 +151,53 @@ export function createServerPluginRuntime(
       },
     })
   );
+  const extensions = options.extensions ?? COMPOSED_EXTENSIONS;
+  assertComposableExtensions(extensions, options.store.listExtensionRegistryIds());
+  const ensureExtensionRegistryRows = (): void => {
+    for (const { manifest } of extensions) {
+      options.store.ensureExtensionRegistryRow(manifest.id, options.now());
+    }
+  };
+  ensureExtensionRegistryRows();
+  const extensionAdapters: PluginRuntimeAdapter[] = [];
+  for (const extension of extensions) {
+    const { manifest } = extension;
+    const adapter: PluginRuntimeAdapter = {
+      manifest,
+      // Extension settings objects are not part of this tier yet.
+      ensureSettingsDefaults: () => Promise.resolve(),
+      runPendingMigrations: () => {
+        for (const migration of extension.migrations ?? []) {
+          options.store.applyExtensionMigration(
+            manifest.id,
+            manifest.dataNamespace,
+            migration.id,
+            options.now(),
+            migration.apply
+          );
+        }
+        return Promise.resolve();
+      },
+      mount: async () => {
+        await extension.mount?.();
+        claimsBlocked.delete(manifest.id);
+        mounted.add(manifest.id);
+      },
+      blockNewClaims: () => {
+        claimsBlocked.add(manifest.id);
+      },
+      drain: () => Promise.resolve("drained"),
+      unmount: async () => {
+        claimsBlocked.add(manifest.id);
+        // Reconciliation unmounts every inactive plugin; an extension only hears about it when
+        // it had been mounted.
+        if (!mounted.delete(manifest.id)) return;
+        await extension.unmount?.();
+      },
+    };
+    adapters.push(adapter);
+    extensionAdapters.push(adapter);
+  }
   const adaptersById = new Map(adapters.map((adapter) => [adapter.manifest.id, adapter]));
 
   configurePrintingPluginLifecycleGate(() => canClaimWork("printing"));
@@ -164,12 +215,29 @@ export function createServerPluginRuntime(
     drainDeadline: options.drainDeadline,
   });
 
+  /** An active extension reaches a restart, or a restored database, through here rather than
+   * through activation: its build may have gained migrations, and its mount may fail. Either
+   * failure is contained as a fault of that extension, so it cannot fail the boot (ADR-068).
+   */
+  const mountActiveExtension = async (adapter: PluginRuntimeAdapter): Promise<void> => {
+    try {
+      await adapter.runPendingMigrations();
+      await adapter.mount();
+    } catch {
+      await coreLifecycle.reportFault(adapter.manifest.id, { code: "contribution_failed" });
+    }
+  };
+
   const mountCanonicalContributions = async (): Promise<void> => {
+    // A restored database may predate an extension of this build.
+    ensureExtensionRegistryRows();
     for (const adapter of adapters) {
-      if (isCanonicalActive(adapter.manifest.id)) {
-        await adapter.mount();
-      } else {
+      if (!isCanonicalActive(adapter.manifest.id)) {
         await adapter.unmount();
+      } else if (extensionAdapters.includes(adapter)) {
+        await mountActiveExtension(adapter);
+      } else {
+        await adapter.mount();
       }
     }
   };
