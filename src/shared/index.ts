@@ -5,6 +5,7 @@ import type { LiveCacheState, LiveClient, RegisteredDevice } from "./networkDevi
 import type { PrintJobState, DerivedPrintJobState } from "./printing.js";
 import type { MemberColorKey } from "./member-color.js";
 import type { CelebrationSettings, MemberCelebration } from "./celebration.js";
+import type { TodoRepeat } from "./todoRepeat.js";
 
 export {
   MEMBER_COLOR_KEYS,
@@ -687,6 +688,8 @@ export interface DailyMessageUpsert {
 
 // ─── To-dos DTOs ─────────────────────────────────────────────
 
+export * from "./todoRepeat.js";
+
 /** TodoList — a named group of household to-dos. `openCount` is derived on read. */
 export interface TodoList {
   id: string;
@@ -711,9 +714,19 @@ export interface Todo {
   notes: string | null;
   dueDate: string | null;
   assigneeMemberId: string | null;
+  /** The repeat rule; it needs a due date. A done to-do keeps it only as a record. */
+  repeat: TodoRepeat | null;
   completedAt: number | null;
   createdAt: number;
   updatedAt: number;
+}
+
+/** TodoCompletion — the answer to "mark done": the done to-do, plus the open to-do this
+ * completion created for the next due date of a repeat rule. `nextOccurrence` is null when the
+ * to-do does not repeat, was already done, or has created its next occurrence before.
+ */
+export interface TodoCompletion extends Todo {
+  nextOccurrence: Todo | null;
 }
 
 /** TodoCreate — create payload; omitted optional fields are stored as null. */
@@ -723,6 +736,7 @@ export interface TodoCreate {
   notes?: string | null;
   dueDate?: string | null;
   assigneeMemberId?: string | null;
+  repeat?: TodoRepeat | null;
 }
 
 /** TodoPatch — partial edit; `null` clears a nullable field. */
@@ -739,6 +753,7 @@ export const TODO_WRITE_FIELDS = [
   "notes",
   "dueDate",
   "assigneeMemberId",
+  "repeat",
 ] as const;
 
 /** Length caps of the to-do text fields. A list name and a title are measured after trimming. */

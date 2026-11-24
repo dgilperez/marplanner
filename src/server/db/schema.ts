@@ -673,7 +673,10 @@ export const todoLists = sqliteTable(
 
 /** To-do items. PLUGIN table (todos, ADR-068). `assignee_member_id` is a plain column with no
  * `.references`: a plugin never holds a foreign key to a core table (ADR-039 §3, ADR-054). The
- * foreign key to `todo_lists` stays inside the plugin's own namespace.
+ * foreign key to `todo_lists` stays inside the plugin's own namespace. The three `repeat_*`
+ * columns are set together and need a due date. `next_todo_id` records the occurrence a completed
+ * repeating to-do created; it has no foreign key, so it outlives that occurrence and the to-do
+ * never creates a second one.
  */
 export const todoItems = sqliteTable(
   "todo_items",
@@ -689,12 +692,20 @@ export const todoItems = sqliteTable(
     completedAt: integer("completed_at"),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
+    repeatEvery: integer("repeat_every"),
+    repeatUnit: text("repeat_unit"),
+    repeatAnchorDay: integer("repeat_anchor_day"),
+    nextTodoId: text("next_todo_id"),
   },
   (table) => ({
     titleCheck: check("todo_items_title_check", sql`length(trim(${table.title})) > 0`),
     dueDateCheck: check(
       "todo_items_due_date_shape_check",
       sql`${table.dueDate} IS NULL OR ${table.dueDate} GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'`
+    ),
+    repeatCheck: check(
+      "todo_items_repeat_check",
+      sql`CASE WHEN ${table.repeatUnit} IS NULL THEN ${table.repeatEvery} IS NULL AND ${table.repeatAnchorDay} IS NULL ELSE ${table.repeatUnit} IN ('day', 'week', 'month', 'year') AND typeof(${table.repeatEvery}) = 'integer' AND ${table.repeatEvery} BETWEEN 1 AND 99 AND typeof(${table.repeatAnchorDay}) = 'integer' AND ${table.repeatAnchorDay} BETWEEN 1 AND 31 AND ${table.dueDate} IS NOT NULL END`
     ),
     listIdIdx: index("todo_items_list_id_idx").on(table.listId),
     dueDateIdx: index("todo_items_due_date_idx").on(table.dueDate),

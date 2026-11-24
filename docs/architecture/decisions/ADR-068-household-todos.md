@@ -59,6 +59,51 @@ migration. It starts inactive.
 - **Selection.** The selected list is component state. No kiosk page persists view state across a
   reload (the Calendar page's week or month mode is not kept either), so this page does not.
 
+### Recurrence (2026-11-24)
+
+Households have to-dos that come back: a vehicle inspection, an insurance renewal, a boiler
+service, a filter change.
+
+- **Rule.** A to-do may carry `repeat: { every, unit }` with `every` from 1 to 99 and `unit` one
+  of `day`, `week`, `month`, `year`. There is no end date, no count and no weekday pattern;
+  routines already cover weekly patterns for the children. A rule needs a due date, because the
+  due date is what it counts from.
+- **Next occurrence on completion.** The server creates the next to-do when the current one is
+  completed, in the same transaction, instead of materialising a series or running a job. Only
+  one occurrence of a repeating to-do is open unless someone reopens a done one, and the plugin
+  still owns no scheduler job. The copy carries list, title, notes, assignee and rule.
+- **Once per to-do.** `todo_items.next_todo_id` records the id of the occurrence a to-do created.
+  It has no foreign key and is never cleared, so reopening and completing again creates nothing,
+  also after the created occurrence was deleted. Together with the `completed_at IS NULL` guard of
+  the completion update this keeps completion idempotent. A self-referencing foreign key with
+  `SET NULL` was rejected: deleting the occurrence would make the to-do create another one.
+- **Reopen keeps the occurrence.** Reopening a done repeating to-do leaves the occurrence it
+  created. Deleting it would lose edits made to it, and the household can delete the one it does
+  not want.
+- **Next due date.** The due date advances by whole intervals until it is strictly after the
+  household's current date (ADR-005). Finishing something three cycles late leaves one to-do, not
+  three overdue ones, and the cycle stays on its original dates instead of drifting to the day of
+  completion. A date that would pass the year 9999 has no next occurrence.
+- **Anchor day.** A month or year step lands on the day of the month the rule was set on, or on
+  the last day of a shorter month: 31 January, 28 February, 31 March. The clamped date alone
+  cannot say that the 28th came from a 31st, so `todo_items.repeat_anchor_day` stores it and the
+  next occurrence inherits it. A write that changes the due date or the rule sets it from the due
+  date again; a write that sends the stored values keeps it. The anchor is not in the API.
+- **Assignee fallback.** The next occurrence keeps the assignee only while that member is an
+  active parent and is unassigned otherwise. The check that rejects such an assignee on a write
+  (above) would otherwise make a completion fail for a reason the person completing cannot fix.
+- **Completion response.** `POST /api/todos/{id}/completion` answers `TodoCompletion`: every field
+  of `Todo` at the top level, plus `nextOccurrence`, a `Todo` or null. A client that reads the
+  response as a to-do keeps working. Reopen still answers `Todo`.
+- **Shared date math.** `src/shared/todoRepeat.ts` holds the rule's validation and the date steps
+  as pure functions over `YYYY-MM-DD` strings, with UTC calendar arithmetic only. The server and
+  the in-memory API of the client tests both use it.
+- **Migration.** `drizzle/0004_todo_repeat.sql` rebuilds `todo_items` with the four columns and
+  one CHECK that holds the rule together, in range and with a due date. It registers no plugin, so
+  `PLUGIN_REGISTRATION_MIGRATIONS` is unchanged.
+- **Repeat mark.** Rows of the To-dos page show an icon with an accessible name such as "Repeats
+  every 2 weeks". The Home agenda rows do not, to keep them as compact as event rows.
+
 ## Consequences
 
 - The plugin delivers the server, the HTTP API (`/api/todos`, `/api/todos/lists`), the Plugin
@@ -75,10 +120,15 @@ migration. It starts inactive.
   archived assignee is kept. The assignee is checked again only when an edit names a different
   one, so it changes when someone picks another adult or nobody.
 - To-dos emit no events and feed no Daily Briefing block. Either would be a later decision.
+- The response of the completion command gained a field. `Todo` gained `repeat`, which is null on
+  every to-do stored before `0004_todo_repeat.sql`.
+- A database that has applied `0004_todo_repeat.sql` does not start on a build without that file,
+  as with every forward migration
+  ([database lifecycle](../database-lifecycle.md#forward-migrations)).
 - Adding the tenth plugin widened every closed inventory of plugin ids: the shared id list, the
   OpenAPI enum, the registry CHECK and the reviewed cohort fixture.
 
 ## Traceability
 
 - Contract: [To-dos](../contracts/todos.md). Feature: [to-dos](../../features/todos.md).
-- Related: ADR-001, ADR-002, ADR-006, ADR-029, ADR-039, ADR-054.
+- Related: ADR-001, ADR-002, ADR-005, ADR-006, ADR-029, ADR-039, ADR-054.

@@ -18,15 +18,21 @@ import { useTranslation } from "@/i18n";
 import { NATIVE_SELECT_CLASSES } from "@/lib/recipes";
 import {
   TODO_NOTES_MAX_LENGTH,
+  TODO_REPEAT_EVERY_MAX,
+  TODO_REPEAT_EVERY_MIN,
+  TODO_REPEAT_UNITS,
   TODO_TITLE_MAX_LENGTH,
   hasVisibleCharacter,
+  isTodoRepeat,
+  sameTodoRepeat,
   type Member,
   type Todo,
   type TodoCreate,
   type TodoList,
   type TodoPatch,
+  type TodoRepeatUnit,
 } from "../../shared";
-import { assignableAdults } from "./todo-presentation";
+import { assignableAdults, repeatLabel } from "./todo-presentation";
 import type { WriteResult } from "./useTodosWorkspace";
 
 interface TodoDialogProps {
@@ -62,6 +68,10 @@ export function TodoDialog({
   const [dueDate, setDueDate] = useState(todo?.dueDate ?? "");
   const [assigneeId, setAssigneeId] = useState(todo?.assigneeMemberId ?? null);
   const [listId, setListId] = useState(todo?.listId ?? initialListId);
+  /** The unit of the repeat rule; empty for a to-do that does not repeat. */
+  const [repeatUnit, setRepeatUnit] = useState<TodoRepeatUnit | "">(todo?.repeat?.unit ?? "");
+  const [repeatEvery, setRepeatEvery] = useState(String(todo?.repeat?.every ?? 1));
+  const [repeatError, setRepeatError] = useState<string | null>(null);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -75,6 +85,11 @@ export function TodoDialog({
       member.id === todo?.assigneeMemberId && !adults.some((adult) => adult.id === member.id)
   );
   const assignees = storedAssignee ? [...adults, storedAssignee] : adults;
+
+  // A rule counts from the due date, so without one the to-do does not repeat (TODOS-INV-11).
+  const repeats = dueDate !== "" && repeatUnit !== "";
+  const typedRepeat = { every: Number(repeatEvery), unit: repeatUnit };
+  const repeat = repeats && isTodoRepeat(typedRepeat) ? typedRepeat : null;
 
   async function finish(write: Promise<WriteResult>) {
     setSaving(true);
@@ -91,7 +106,11 @@ export function TodoDialog({
       setTitleError(t("todos.field.titleRequired"));
       return;
     }
-    const fields: Required<TodoCreate> = {
+    if (repeats && repeat === null) {
+      setRepeatError(t("todos.field.repeatEveryInvalid"));
+      return;
+    }
+    const fields: Required<Omit<TodoCreate, "repeat">> = {
       listId,
       title: trimmedTitle,
       notes: notes.trim() ? notes : null,
@@ -104,6 +123,7 @@ export function TodoDialog({
     const changes: TodoPatch = Object.fromEntries(
       Object.entries(fields).filter(([field, value]) => value !== stored[field as keyof TodoCreate])
     );
+    if (!sameTodoRepeat(repeat, todo?.repeat ?? null)) changes.repeat = repeat;
     if (todo === null) void finish(onCreate({ ...changes, listId, title: trimmedTitle }));
     else if (Object.keys(changes).length === 0) onClose();
     else void finish(onEdit(todo.id, changes));
@@ -129,6 +149,9 @@ export function TodoDialog({
           </DialogHeader>
           <form
             className="flex flex-col gap-4"
+            // The form reports its own errors in the UI language; the browser's bubble for the
+            // interval's range would replace them.
+            noValidate
             onSubmit={(event) => {
               event.preventDefault();
               save();
@@ -173,6 +196,48 @@ export function TodoDialog({
                 </select>
               </Field>
             </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label={t("todos.field.repeat")}
+                hint={dueDate === "" ? t("todos.field.repeatHint") : undefined}
+              >
+                <select
+                  value={repeats ? repeatUnit : ""}
+                  disabled={dueDate === ""}
+                  onChange={(event) => {
+                    setRepeatUnit(event.target.value as TodoRepeatUnit | "");
+                    setRepeatError(null);
+                  }}
+                  className={NATIVE_SELECT_CLASSES}
+                >
+                  <option value="">{t("todos.repeat.never")}</option>
+                  {TODO_REPEAT_UNITS.map((unit) => (
+                    <option key={unit} value={unit}>
+                      {t(`todos.repeat.unit.${unit}`)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              {repeats && (
+                <Field label={t("todos.field.repeatEvery")} error={repeatError}>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={TODO_REPEAT_EVERY_MIN}
+                    max={TODO_REPEAT_EVERY_MAX}
+                    step={1}
+                    value={repeatEvery}
+                    onChange={(event) => {
+                      setRepeatEvery(event.target.value);
+                      setRepeatError(null);
+                    }}
+                  />
+                </Field>
+              )}
+            </div>
+            {repeat && (
+              <p className="text-muted-foreground text-control">{repeatLabel(repeat, t)}</p>
+            )}
             <fieldset className="flex flex-col gap-1.5">
               <legend className="text-control mb-1.5 font-medium">
                 {t("todos.field.assignee")}

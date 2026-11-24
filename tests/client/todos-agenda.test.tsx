@@ -151,6 +151,37 @@ describe("Home agenda to-dos group", () => {
     expect(screen.getByRole("checkbox", { name: "Renew passport" })).toBeVisible();
   });
 
+  it("drops a completed repeating to-do and lists its next occurrence on the day it is due", async () => {
+    const backend = mount({
+      events: [],
+      todos: [
+        {
+          id: "bins",
+          listId: "home",
+          title: "Take out the bins",
+          dueDate: "2026-09-21",
+          repeat: { every: 1, unit: "day" },
+        },
+      ],
+    });
+    await group();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Take out the bins" }));
+
+    // Finished a day late: the next occurrence is due tomorrow, so today has nothing left.
+    expect(await screen.findByText("Nothing scheduled today.")).toBeVisible();
+    expect([...backend.todos.values()].map((todo) => [todo.dueDate, todo.completedAt])).toEqual([
+      ["2026-09-21", NOW],
+      ["2026-09-23", null],
+    ]);
+
+    vi.setSystemTime("2026-09-23T06:00:00Z");
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(await screen.findByRole("checkbox", { name: "Take out the bins" })).not.toBeChecked();
+    expect(rowOf("Take out the bins").querySelector("time")).not.toBeInTheDocument();
+  });
+
   it("reports a completion that failed and keeps the row", async () => {
     mount({
       intercept: (key) =>

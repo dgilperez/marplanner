@@ -6,6 +6,9 @@ import { z } from "zod";
 import {
   TODO_LIST_NAME_MAX_LENGTH,
   TODO_NOTES_MAX_LENGTH,
+  TODO_REPEAT_EVERY_MAX,
+  TODO_REPEAT_EVERY_MIN,
+  TODO_REPEAT_UNITS,
   TODO_STATUS_FILTERS,
   TODO_TITLE_MAX_LENGTH,
 } from "../../shared";
@@ -36,6 +39,19 @@ const assigneeMemberId = z.string().meta({
     "soft reference to members.id. A write that changes it requires an active member whose role is parent.",
 });
 
+export const TodoRepeat = component(
+  "TodoRepeat",
+  z
+    .strictObject({
+      every: z.int().min(TODO_REPEAT_EVERY_MIN).max(TODO_REPEAT_EVERY_MAX),
+      unit: z.enum(TODO_REPEAT_UNITS),
+    })
+    .meta({
+      description:
+        "repeat rule: every `every` units, counted from the due date. A to-do with a rule has a due date.",
+    })
+);
+
 export const TodoList = component(
   "TodoList",
   z.strictObject({
@@ -61,9 +77,24 @@ export const Todo = component(
       description:
         "stored member id, returned as it is even when that member has been archived or removed.",
     }),
+    repeat: TodoRepeat.nullable().meta({
+      description: "null when the to-do does not repeat. A done to-do keeps its rule as a record.",
+    }),
     completedAt: epochMs.nullable().meta({ description: "set while the to-do is done." }),
     createdAt: epochMs,
     updatedAt: epochMs,
+  })
+);
+
+export const TodoCompletion = component(
+  "TodoCompletion",
+  Todo.extend({
+    nextOccurrence: Todo.nullable().meta({
+      description:
+        "the open to-do this completion created for the next due date of the repeat rule; null when the to-do does not repeat, was already done, or created its next occurrence before.",
+    }),
+  }).meta({
+    description: "the done to-do with every field of Todo, plus the occurrence it created.",
   })
 );
 
@@ -75,6 +106,7 @@ export const TodoCreate = component(
     notes: notes.nullable().optional(),
     dueDate: dueDate.nullable().optional(),
     assigneeMemberId: assigneeMemberId.nullable().optional(),
+    repeat: TodoRepeat.nullable().optional().meta({ description: "requires a due date." }),
   })
 );
 
@@ -86,6 +118,10 @@ export const TodoPatch = component(
     notes: notes.nullable().optional(),
     dueDate: dueDate.nullable().optional(),
     assigneeMemberId: assigneeMemberId.nullable().optional(),
+    repeat: TodoRepeat.nullable().optional().meta({
+      description:
+        "requires a due date: clearing the due date of a repeating to-do needs repeat: null in the same request.",
+    }),
   }),
   { minProperties: 1 }
 );
@@ -195,7 +231,7 @@ export const todosSchemas = defineRouteSchemas({
     response: {
       201: json("created", Todo),
       400: json(
-        "non-object body, unsupported field, invalid field, unknown list, or an assignee who is not an active parent",
+        "non-object body, unsupported field, invalid field, unknown list, an assignee who is not an active parent, or a repeat rule without a due date",
         ErrorSchema
       ),
       ...gated,
@@ -222,7 +258,7 @@ export const todosSchemas = defineRouteSchemas({
     response: {
       200: json("updated", Todo),
       400: json(
-        "non-object or empty body, unsupported field, invalid field, unknown list, or a new assignee who is not an active parent",
+        "non-object or empty body, unsupported field, invalid field, unknown list, a new assignee who is not an active parent, or a repeat rule left without a due date",
         ErrorSchema
       ),
       404: unknownTodo,
@@ -242,16 +278,22 @@ export const todosSchemas = defineRouteSchemas({
   postTodosByIdCompletion: {
     operationId: "postTodosByIdCompletion",
     tags,
-    summary: "Mark a to-do done. Idempotent: a to-do that is already done keeps its completedAt.",
+    summary:
+      "Mark a to-do done. Idempotent: a to-do that is already done keeps its completedAt. Completing a repeating to-do creates its next occurrence once, in the same transaction, with the due date advanced by whole intervals until it is after the household's current date.",
     security,
     params: idParams,
-    response: { 200: json("the done to-do", Todo), 404: unknownTodo, ...gated },
+    response: {
+      200: json("the done to-do and the occurrence it created, if any", TodoCompletion),
+      404: unknownTodo,
+      ...gated,
+    },
   },
   /** DELETE /api/todos/{id}/completion */
   deleteTodosByIdCompletion: {
     operationId: "deleteTodosByIdCompletion",
     tags,
-    summary: "Reopen a to-do. Idempotent: an open to-do is returned unchanged.",
+    summary:
+      "Reopen a to-do. Idempotent: an open to-do is returned unchanged. The occurrence a repeating to-do created when it was completed is kept.",
     security,
     params: idParams,
     response: { 200: json("the open to-do", Todo), 404: unknownTodo, ...gated },

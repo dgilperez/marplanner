@@ -1920,3 +1920,48 @@ guarantees:
     owner: todos
     spec: todos
     note: "A page open while the plugin is deactivated says to-dos are turned off."
+  - id: TODOS-INV-11
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Repeat rule null or { every 1..99, unit day|week|month|year }; a rule needs a due date."
+  - id: TODOS-INV-12
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Completing a repeating to-do creates its next occurrence in the same transaction, once per to-do."
+  - id: TODOS-INV-13
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Next due date strictly after the household date; month/year steps clamp and return to the anchor day."
+  - id: TODOS-AC-16
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Rule without due date rejected on create and edit; clearing the due date needs clearing the rule."
+  - id: TODOS-AC-17
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "One next occurrence with list, title, notes, assignee and rule; repeated, concurrent or post-reopen completions create none."
+  - id: TODOS-AC-18
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Four units, month-end clamping, anchor, leap years, catch-up when late, household timezone."
+  - id: TODOS-AC-19
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Next occurrence unassigned when the assignee is no longer an active parent; completion succeeds."
+  - id: TODOS-AC-20
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "0004_todo_repeat.sql keeps existing to-dos; the table refuses an incomplete, out-of-range or undated rule."
+  - id: TODOS-AC-21
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Form offers repeat only with a due date; repeating row marked with a localized label; next occurrence shown after completion."

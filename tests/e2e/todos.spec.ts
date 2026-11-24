@@ -166,6 +166,79 @@ test("adults keep a to-do list on the kiosk and complete from the Home agenda", 
   );
 });
 
+test("completing a repeating to-do leaves its next occurrence in the list", async ({ page }) => {
+  test.setTimeout(120_000);
+  const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  const title = `Change the filter ${suffix}`;
+
+  const { m, today } = await provision(page);
+  const listResponse = await page.request.post("/api/todos/lists", {
+    data: { name: `Maintenance ${suffix}` },
+  });
+  expect(listResponse.status()).toBe(201);
+  const listId = ((await listResponse.json()) as { id: string }).id;
+  createdListIds.push(listId);
+  // Two weeks after the household's today, as a calendar date.
+  const [year, month, day] = today.split("-").map(Number);
+  const nextDue = new Date(Date.UTC(year, month - 1, day + 14)).toISOString().slice(0, 10);
+  const repeatLabel = m["todos.repeat.week.other"].replace("{count}", "2");
+
+  await page.goto("/todos");
+  await expect(page.getByTestId("todos-board")).toBeVisible({ timeout: 15_000 });
+  await page.getByTestId(`todos-list-${listId}`).check({ force: true });
+
+  // The repeat control waits for a due date.
+  await page.getByRole("button", { name: m["todos.quickAdd.details"] }).click();
+  const dialog = page.getByRole("dialog", { name: m["todos.dialog.createTitle"] });
+  await dialog.getByLabel(m["todos.field.title"]).fill(title);
+  await expect(dialog.getByLabel(m["todos.field.repeat"])).toBeDisabled();
+  await dialog.getByLabel(m["todos.field.dueDate"]).fill(today);
+  await dialog.getByLabel(m["todos.field.repeat"]).selectOption("week");
+  await dialog.getByLabel(m["todos.field.repeatEvery"]).fill("2");
+  await expect(dialog.getByText(repeatLabel)).toBeVisible();
+  await dialog.getByRole("button", { name: m["todos.quickAdd.submit"], exact: true }).click();
+  await expect(dialog).toBeHidden();
+
+  const openList = page.getByRole("list", { name: m["todos.items.openLabel"] });
+  const row = openList.getByRole("listitem").filter({ hasText: title });
+  await expect(row).toHaveCount(1);
+  await expect(row.locator("time")).toHaveAttribute("datetime", today);
+  await expect(row.getByRole("img", { name: repeatLabel })).toBeVisible();
+
+  // Completing it answers with the next occurrence, which takes its place in the open list.
+  const completed = page.waitForResponse(
+    (response) => response.url().endsWith("/completion") && response.request().method() === "POST"
+  );
+  await row.getByRole("checkbox", { name: title }).click();
+  const completion = (await (await completed).json()) as {
+    completedAt: number | null;
+    nextOccurrence: { dueDate: string; completedAt: number | null } | null;
+  };
+  expect(completion.completedAt).not.toBeNull();
+  expect(completion.nextOccurrence).toMatchObject({ dueDate: nextDue, completedAt: null });
+  await expect(row).toHaveCount(1);
+  await expect(row.locator("time")).toHaveAttribute("datetime", nextDue);
+  await expect(row.getByRole("checkbox", { name: title })).not.toBeChecked();
+  await expect(row.getByRole("img", { name: repeatLabel })).toBeVisible();
+
+  // The completed one is kept under Done.
+  await page.getByRole("button", { name: m["todos.done.title"], exact: true }).click();
+  const doneList = page.getByRole("list", { name: m["todos.done.listLabel"] });
+  await expect(doneList.getByRole("checkbox", { name: title })).toBeChecked();
+  const stored = (await (
+    await page.request.get(`/api/todos?listId=${listId}&status=all`)
+  ).json()) as { dueDate: string; completedAt: number | null }[];
+  expect(stored.map((todo) => [todo.dueDate, todo.completedAt !== null])).toEqual([
+    [nextDue, false],
+    [today, true],
+  ]);
+
+  // The next occurrence is due later, so today's Home agenda no longer lists the to-do.
+  await page.goto("/");
+  await expect(page.getByTestId("home-surface")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("checkbox", { name: title })).toHaveCount(0);
+});
+
 test.describe("while the to-dos plugin is deactivated", () => {
   let server: Awaited<ReturnType<typeof startFreshPluginLifecycleServer>>;
 

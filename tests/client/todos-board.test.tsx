@@ -1004,6 +1004,258 @@ describe("TodosBoard dialog", () => {
   });
 });
 
+describe("TodosBoard repeating to-dos", () => {
+  const filter = {
+    id: "filter",
+    listId: "home",
+    title: "Change the filter",
+    dueDate: "2026-09-22",
+    assigneeMemberId: "dana",
+    repeat: { every: 2, unit: "week" },
+  } as const;
+  const withFilter = [...todos!, filter];
+
+  async function openCreateDialog() {
+    await openList();
+    fireEvent.click(screen.getByRole("button", { name: "Add with details" }));
+    return screen.findByRole("dialog", { name: "New to-do" });
+  }
+  async function openEditDialog(title: string) {
+    await openList();
+    fireEvent.click(screen.getByRole("button", { name: `Edit: ${title}` }));
+    return screen.findByRole("dialog", { name: "Edit to-do" });
+  }
+  const set = (dialog: HTMLElement, label: string, value: string) =>
+    fireEvent.change(within(dialog).getByLabelText(label), { target: { value } });
+
+  it("marks only a repeating row, with a label that says how often", async () => {
+    mount({ todos: withFilter });
+    await openList();
+    expect(
+      within(rowOf("Change the filter")).getByRole("img", { name: "Repeats every 2 weeks" })
+    ).toBeVisible();
+    expect(within(rowOf("Call the plumber")).queryByRole("img")).not.toBeInTheDocument();
+    expect(within(rowOf("Fix the tap")).queryByRole("img")).not.toBeInTheDocument();
+  });
+
+  it("labels a repeating row in Spanish, singular for an interval of one", async () => {
+    mount({
+      language: "es",
+      todos: [
+        ...withFilter,
+        {
+          ...filter,
+          id: "boiler",
+          title: "Revisar la caldera",
+          repeat: { every: 1, unit: "year" },
+        },
+      ],
+    });
+    await screen.findByRole("list", { name: "Pendientes abiertos" });
+    expect(
+      within(rowOf("Change the filter")).getByRole("img", { name: "Se repite cada 2 semanas" })
+    ).toBeVisible();
+    expect(
+      within(rowOf("Revisar la caldera")).getByRole("img", { name: "Se repite cada año" })
+    ).toBeVisible();
+  });
+
+  it("offers the repeat control only once a due date is set", async () => {
+    mount();
+    const dialog = await openCreateDialog();
+    const repeats = within(dialog).getByLabelText("Repeats");
+    expect(repeats).toBeDisabled();
+    expect(repeats).toHaveValue("");
+    expect(repeats).toHaveAccessibleDescription("Set a due date to make it repeat.");
+    expect(within(dialog).queryByLabelText("Every")).not.toBeInTheDocument();
+
+    set(dialog, "Due date", "2026-09-30");
+    expect(repeats).toBeEnabled();
+    expect(repeats).not.toHaveAccessibleDescription();
+    expect(
+      within(repeats)
+        .getAllByRole("option")
+        .map((option) => option.textContent)
+    ).toEqual(["Never", "Days", "Weeks", "Months", "Years"]);
+  });
+
+  it("adds a to-do that repeats every 2 weeks and shows it marked", async () => {
+    const backend = mount();
+    const dialog = await openCreateDialog();
+    set(dialog, "Title", "Change the filter");
+    set(dialog, "Due date", "2026-09-30");
+    set(dialog, "Repeats", "week");
+    expect(within(dialog).getByLabelText("Every")).toHaveValue(1);
+    expect(within(dialog).getByText("Repeats every week")).toBeVisible();
+    set(dialog, "Every", "2");
+    expect(within(dialog).getByText("Repeats every 2 weeks")).toBeVisible();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(backend.bodies("POST /api/todos")).toEqual([
+      {
+        listId: "home",
+        title: "Change the filter",
+        dueDate: "2026-09-30",
+        repeat: { every: 2, unit: "week" },
+      },
+    ]);
+    expect(
+      within(rowOf("Change the filter")).getByRole("img", { name: "Repeats every 2 weeks" })
+    ).toBeVisible();
+  });
+
+  it.each([
+    ["empty", ""],
+    ["zero", "0"],
+    ["100", "100"],
+    ["a fraction", "1.5"],
+  ])("refuses an interval that is %s and sends nothing", async (_label, value) => {
+    const backend = mount();
+    const dialog = await openCreateDialog();
+    set(dialog, "Title", "Change the filter");
+    set(dialog, "Due date", "2026-09-30");
+    set(dialog, "Repeats", "month");
+    set(dialog, "Every", value);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
+
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      "Enter a whole number from 1 to 99."
+    );
+    expect(within(dialog).getByLabelText("Every")).toBeInvalid();
+    expect(backend.keys("POST")).toEqual([]);
+
+    set(dialog, "Every", "99");
+    expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(backend.bodies("POST /api/todos")).toMatchObject([
+      { repeat: { every: 99, unit: "month" } },
+    ]);
+  });
+
+  it("sends no rule when the due date is taken away again before saving", async () => {
+    const backend = mount();
+    const dialog = await openCreateDialog();
+    set(dialog, "Title", "Change the filter");
+    set(dialog, "Due date", "2026-09-30");
+    set(dialog, "Repeats", "day");
+    set(dialog, "Due date", "");
+    expect(within(dialog).getByLabelText("Repeats")).toBeDisabled();
+    expect(within(dialog).queryByLabelText("Every")).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(backend.bodies("POST /api/todos")).toEqual([
+      { listId: "home", title: "Change the filter" },
+    ]);
+  });
+
+  it("shows the stored rule and sends it only when it changed", async () => {
+    const backend = mount({ todos: withFilter });
+    const unchanged = await openEditDialog("Change the filter");
+    expect(within(unchanged).getByLabelText("Repeats")).toHaveValue("week");
+    expect(within(unchanged).getByLabelText("Every")).toHaveValue(2);
+    fireEvent.click(within(unchanged).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(backend.keys("PATCH")).toEqual([]);
+
+    const dialog = await openEditDialog("Change the filter");
+    set(dialog, "Every", "3");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(backend.bodies("PATCH /api/todos/filter")).toEqual([
+      { repeat: { every: 3, unit: "week" } },
+    ]);
+    expect(
+      await within(rowOf("Change the filter")).findByRole("img", { name: "Repeats every 3 weeks" })
+    ).toBeVisible();
+  });
+
+  it("stops a to-do from repeating", async () => {
+    const backend = mount({ todos: withFilter });
+    const dialog = await openEditDialog("Change the filter");
+    set(dialog, "Repeats", "");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(backend.bodies("PATCH /api/todos/filter")).toEqual([{ repeat: null }]);
+    await waitFor(() =>
+      expect(within(rowOf("Change the filter")).queryByRole("img")).not.toBeInTheDocument()
+    );
+  });
+
+  it("clears the rule together with the due date of a repeating to-do", async () => {
+    const backend = mount({ todos: withFilter });
+    const dialog = await openEditDialog("Change the filter");
+    set(dialog, "Due date", "");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(backend.bodies("PATCH /api/todos/filter")).toEqual([{ dueDate: null, repeat: null }]);
+    expect(backend.todo("filter")).toMatchObject({ dueDate: null, repeat: null });
+  });
+
+  it("gives an existing to-do a rule", async () => {
+    const backend = mount();
+    const dialog = await openEditDialog("Book the van");
+    set(dialog, "Repeats", "year");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(backend.bodies("PATCH /api/todos/future")).toEqual([
+      { repeat: { every: 1, unit: "year" } },
+    ]);
+  });
+
+  it("shows the next occurrence in the open list after a repeating to-do is completed", async () => {
+    const backend = mount({ todos: withFilter });
+    await openList();
+    fireEvent.click(within(rowOf("Change the filter")).getByRole("checkbox"));
+
+    // The completed one leaves and its copy for 6 October takes its place, still assigned.
+    await waitFor(() =>
+      expect(rowOf("Change the filter").querySelector("time")).toHaveAttribute(
+        "datetime",
+        "2026-10-06"
+      )
+    );
+    const next = rowOf("Change the filter");
+    expect(within(next).getByRole("checkbox")).not.toBeChecked();
+    expect(within(next).getByRole("img", { name: "Repeats every 2 weeks" })).toBeVisible();
+    expect(within(next).getByTestId("todo-assignee")).toHaveTextContent("Dana");
+    expect(screen.getByRole("radio", { name: "Casa (5)" })).toBeChecked();
+    expect(backend.todo("filter")?.completedAt).toBe(NOW);
+
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    const done = await screen.findByRole("list", { name: "Done to-dos" });
+    expect(titles(done)).toEqual(["Change the filter", "Pay the deposit"]);
+    expect(within(done).getByRole("img", { name: "Repeats every 2 weeks" })).toBeVisible();
+  });
+
+  it("creates no second occurrence when the completed to-do is reopened and completed again", async () => {
+    const backend = mount({ todos: [filter] });
+    await openList();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Change the filter" }));
+    await waitFor(() =>
+      expect(rowOf("Change the filter").querySelector("time")).toHaveAttribute(
+        "datetime",
+        "2026-10-06"
+      )
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    const done = await screen.findByRole("list", { name: "Done to-dos" });
+    fireEvent.click(within(done).getByRole("checkbox", { name: "Change the filter" }));
+    await waitFor(() =>
+      expect(titles(screen.getByRole("list", { name: "Open to-dos" }))).toHaveLength(2)
+    );
+
+    const open = screen.getByRole("list", { name: "Open to-dos" });
+    fireEvent.click(within(open).getAllByRole("checkbox", { name: "Change the filter" })[0]);
+    await waitFor(() =>
+      expect(titles(screen.getByRole("list", { name: "Open to-dos" }))).toHaveLength(1)
+    );
+    expect(backend.todos.size).toBe(2);
+  });
+});
+
 describe("TodosBoard loading and failures", () => {
   it("announces loading before the lists arrive", async () => {
     mount();

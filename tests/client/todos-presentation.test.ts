@@ -10,6 +10,7 @@ import {
   formatDueDate,
   isOverdue,
   listsInReadingOrder,
+  repeatLabel,
   todoAssignees,
 } from "@/todos/todo-presentation";
 import { todosErrorKey } from "@/todos/todos-api";
@@ -24,6 +25,7 @@ const todo = (id: string, dueDate: string | null, completedAt: number | null = n
   notes: null,
   dueDate,
   assigneeMemberId: null,
+  repeat: null,
   completedAt,
   createdAt: 0,
   updatedAt: 0,
@@ -121,6 +123,30 @@ describe("to-do copy and order", () => {
     expect(names("es")).toEqual(["alfa", "Árbol", "Beta", "Home", "nube", "Ñu", "Two", "zeta"]);
     expect(names("en")).toEqual(["alfa", "Árbol", "Beta", "Home", "Ñu", "nube", "Two", "zeta"]);
     expect(read.map((item) => item.name).at(-1)).toBe("Ñu");
+  });
+});
+
+describe("to-do repeat label", () => {
+  it.each([
+    ["en", 1, "day", "Repeats every day"],
+    ["en", 3, "day", "Repeats every 3 days"],
+    ["en", 1, "week", "Repeats every week"],
+    ["en", 2, "week", "Repeats every 2 weeks"],
+    ["en", 1, "month", "Repeats every month"],
+    ["en", 6, "month", "Repeats every 6 months"],
+    ["en", 1, "year", "Repeats every year"],
+    ["en", 99, "year", "Repeats every 99 years"],
+    ["es", 1, "day", "Se repite cada día"],
+    ["es", 3, "day", "Se repite cada 3 días"],
+    ["es", 1, "week", "Se repite cada semana"],
+    ["es", 2, "week", "Se repite cada 2 semanas"],
+    ["es", 1, "month", "Se repite cada mes"],
+    ["es", 6, "month", "Se repite cada 6 meses"],
+    ["es", 1, "year", "Se repite cada año"],
+    ["es", 99, "year", "Se repite cada 99 años"],
+  ] as const)("%s: every %i %s reads %s", (language, every, unit, expected) => {
+    const t = (key: keyof (typeof messages)["en"]) => messages[language][key];
+    expect(repeatLabel({ every, unit }, t)).toBe(expected);
   });
 });
 

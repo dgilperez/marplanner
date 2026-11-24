@@ -126,6 +126,10 @@ Restore reports such a backup as `unsupported_lineage`. `installation_lineage.ki
   rebuilds `plugin_activation_registry` so its `plugin_id` CHECK accepts `todos`, keeping every
   existing row. It then inserts the `todos` row as `inactive`. The runner expects nine registry
   rows before this migration is in the ledger and ten after.
+- `0004_todo_repeat.sql` (ADR-068): rebuilds `todo_items` with `repeat_every`, `repeat_unit`,
+  `repeat_anchor_day` and `next_todo_id`, and a CHECK that keeps the three `repeat_*` columns set
+  together, in range and with a due date. Existing to-dos are copied with all four NULL. It
+  registers no plugin, so the registry count is unchanged.
 
 The runner identifies a migration by its file name, not by its number. On each start it sorts the
 file names in `drizzle/`, refuses a ledger that names a file the build does not ship

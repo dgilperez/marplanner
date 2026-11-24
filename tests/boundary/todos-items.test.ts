@@ -26,6 +26,7 @@ describe("todos items — create and read", () => {
         notes: null,
         dueDate: null,
         assigneeMemberId: null,
+        repeat: null,
         completedAt: null,
         createdAt: expect.any(Number),
         updatedAt: todo.createdAt,
@@ -324,6 +325,7 @@ describe("todos items — completion", () => {
           ...todo,
           completedAt: Date.parse("2026-11-24T08:30:00.000Z"),
           updatedAt: Date.parse("2026-11-24T08:30:00.000Z"),
+          nextOccurrence: null,
         });
         expect(second.statusCode).toBe(200);
         expect(second.json()).toEqual(first.json());

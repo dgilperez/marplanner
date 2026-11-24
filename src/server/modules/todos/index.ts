@@ -1,15 +1,29 @@
 import { randomUUID } from "node:crypto";
-import { getDb, isStrictCalendarDate, listActiveMembers } from "../../host-api";
+import { getDb, isStrictCalendarDate, listActiveMembers, todayInHouseholdTz } from "../../host-api";
 import {
   TODO_LIST_NAME_MAX_LENGTH,
   TODO_LIST_WRITE_FIELDS,
   TODO_NOTES_MAX_LENGTH,
+  TODO_REPEAT_EVERY_MAX,
+  TODO_REPEAT_EVERY_MIN,
+  TODO_REPEAT_UNITS,
   TODO_STATUS_FILTERS,
   TODO_TITLE_MAX_LENGTH,
   TODO_WRITE_FIELDS,
   hasVisibleCharacter,
+  isTodoRepeat,
+  nextRepeatDueDate,
+  repeatAnchorDay,
+  sameTodoRepeat,
 } from "../../../shared";
-import type { Todo, TodoList, TodoStatusFilter } from "../../../shared";
+import type {
+  Todo,
+  TodoCompletion,
+  TodoList,
+  TodoRepeat,
+  TodoRepeatUnit,
+  TodoStatusFilter,
+} from "../../../shared";
 
 export class TodoValidationError extends Error {
   constructor(message: string) {
@@ -50,6 +64,12 @@ type TodoRow = {
   completed_at: number | null;
   created_at: number;
   updated_at: number;
+  repeat_every: number | null;
+  repeat_unit: TodoRepeatUnit | null;
+  /** The day of the month a month or year rule returns to; set whenever the rule is. */
+  repeat_anchor_day: number | null;
+  /** The occurrence this to-do created when it was completed; set at most once. */
+  next_todo_id: string | null;
 };
 
 const LIST_SELECT = `SELECT id, name, created_at, updated_at,
@@ -58,8 +78,13 @@ const LIST_SELECT = `SELECT id, name, created_at, updated_at,
   FROM todo_lists`;
 
 const TODO_SELECT = `SELECT id, list_id, title, notes, due_date, assignee_member_id, completed_at,
-    created_at, updated_at
+    created_at, updated_at, repeat_every, repeat_unit, repeat_anchor_day, next_todo_id
   FROM todo_items`;
+
+const TODO_INSERT = `INSERT INTO todo_items
+    (id, list_id, title, notes, due_date, assignee_member_id, completed_at, created_at, updated_at,
+     repeat_every, repeat_unit, repeat_anchor_day)
+  VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`;
 
 /** `updated_at` must move forward even when two writes land in the same millisecond. */
 const NEXT_UPDATED_AT = "MAX(?, updated_at + 1)";
@@ -74,6 +99,13 @@ function rowToTodoList(row: TodoListRow): TodoList {
   };
 }
 
+function rowToRepeat(row: TodoRow): TodoRepeat | null {
+  // The table's CHECK sets the three repeat columns together.
+  return row.repeat_unit === null
+    ? null
+    : { every: row.repeat_every as number, unit: row.repeat_unit };
+}
+
 function rowToTodo(row: TodoRow): Todo {
   return {
     id: row.id,
@@ -82,6 +114,7 @@ function rowToTodo(row: TodoRow): Todo {
     notes: row.notes,
     dueDate: row.due_date,
     assigneeMemberId: row.assignee_member_id,
+    repeat: rowToRepeat(row),
     completedAt: row.completed_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -145,16 +178,43 @@ function parseListId(value: unknown): string {
   return value;
 }
 
+function isActiveParent(memberId: string): boolean {
+  return listActiveMembers().some((member) => member.id === memberId && member.role === "parent");
+}
+
 /** Only adults take household to-dos (ADR-068): the assignee must be an active parent. */
 function parseAssignee(value: unknown): string | null {
   if (value === undefined || value === null) return null;
   if (typeof value !== "string") {
     throw new TodoValidationError("assigneeMemberId must be a string or null");
   }
-  if (!listActiveMembers().some((member) => member.id === value && member.role === "parent")) {
+  if (!isActiveParent(value)) {
     throw new TodoValidationError(`Member "${value}" is not an active parent`);
   }
   return value;
+}
+
+function parseRepeat(value: unknown): TodoRepeat | null {
+  if (value === undefined || value === null) return null;
+  if (!isTodoRepeat(value)) {
+    throw new TodoValidationError(
+      `repeat must be null or { every: ${TODO_REPEAT_EVERY_MIN}..${TODO_REPEAT_EVERY_MAX}, unit: ${TODO_REPEAT_UNITS.join("|")} }`
+    );
+  }
+  return { every: value.every, unit: value.unit };
+}
+
+/** The `repeat_*` column values in column order. A rule counts from the due date, so it cannot
+ * stand without one. `keptAnchorDay` is the stored anchor of a rule and due date that did not
+ * change; without it the rule anchors on the due date. */
+function repeatColumns(
+  repeat: TodoRepeat | null,
+  dueDate: string | null,
+  keptAnchorDay: number | null = null
+): [number | null, TodoRepeatUnit | null, number | null] {
+  if (repeat === null) return [null, null, null];
+  if (dueDate === null) throw new TodoValidationError("A repeating to-do needs a due date");
+  return [repeat.every, repeat.unit, keptAnchorDay ?? repeatAnchorDay(dueDate)];
 }
 
 function parseListName(input: unknown): string {
@@ -264,10 +324,14 @@ export function listTodos(query: TodoFilters = {}): Todo[] {
   return rows.map(rowToTodo);
 }
 
-export function getTodo(id: string): Todo {
+function readTodoRow(id: string): TodoRow {
   const row = getDb().prepare(`${TODO_SELECT} WHERE id = ?`).get(id) as TodoRow | undefined;
   if (!row) throw new TodoNotFoundError(`To-do "${id}" does not exist`);
-  return rowToTodo(row);
+  return row;
+}
+
+export function getTodo(id: string): Todo {
+  return rowToTodo(readTodoRow(id));
 }
 
 export function createTodo(input: unknown): Todo {
@@ -279,28 +343,38 @@ export function createTodo(input: unknown): Todo {
     listId: parseListId(body.listId),
     assigneeMemberId: parseAssignee(body.assigneeMemberId),
   };
+  const repeat = repeatColumns(parseRepeat(body.repeat), todo.dueDate);
   const id = randomUUID();
   const now = Date.now();
   getDb()
-    .prepare(
-      `INSERT INTO todo_items
-         (id, list_id, title, notes, due_date, assignee_member_id, completed_at, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)`
-    )
-    .run(id, todo.listId, todo.title, todo.notes, todo.dueDate, todo.assigneeMemberId, now, now);
+    .prepare(TODO_INSERT)
+    .run(
+      id,
+      todo.listId,
+      todo.title,
+      todo.notes,
+      todo.dueDate,
+      todo.assigneeMemberId,
+      now,
+      now,
+      ...repeat
+    );
   return getTodo(id);
 }
 
 /** Partial edit: only the named fields change, and `null` clears a nullable one. The assignee is
  * checked only when the request changes it, so a to-do whose assignee was archived later stays
- * editable. Completion has its own commands and is never set here.
+ * editable. Completion has its own commands and is never set here. A month or year rule keeps the
+ * day of the month it was set on through shorter months; an edit that changes the due date or the
+ * rule sets that day from the due date again.
  */
 export function editTodo(id: string, input: unknown): Todo {
   const body = allowListed(input, TODO_WRITE_FIELDS, "to-do body");
   if (Object.keys(body).length === 0) {
     throw new TodoValidationError("To-do body must name at least one field");
   }
-  const current = getTodo(id);
+  const row = readTodoRow(id);
+  const current = rowToTodo(row);
   const next = {
     title: "title" in body ? parseLabel(body.title, "title", TODO_TITLE_MAX_LENGTH) : current.title,
     notes: "notes" in body ? parseNotes(body.notes) : current.notes,
@@ -310,15 +384,28 @@ export function editTodo(id: string, input: unknown): Todo {
       "assigneeMemberId" in body && body.assigneeMemberId !== current.assigneeMemberId
         ? parseAssignee(body.assigneeMemberId)
         : current.assigneeMemberId,
+    repeat: "repeat" in body ? parseRepeat(body.repeat) : current.repeat,
   };
+  const sameCycle = next.dueDate === current.dueDate && sameTodoRepeat(next.repeat, current.repeat);
+  const repeat = repeatColumns(next.repeat, next.dueDate, sameCycle ? row.repeat_anchor_day : null);
   getDb()
     .prepare(
       `UPDATE todo_items
           SET list_id = ?, title = ?, notes = ?, due_date = ?, assignee_member_id = ?,
+              repeat_every = ?, repeat_unit = ?, repeat_anchor_day = ?,
               updated_at = ${NEXT_UPDATED_AT}
         WHERE id = ?`
     )
-    .run(next.listId, next.title, next.notes, next.dueDate, next.assigneeMemberId, Date.now(), id);
+    .run(
+      next.listId,
+      next.title,
+      next.notes,
+      next.dueDate,
+      next.assigneeMemberId,
+      ...repeat,
+      Date.now(),
+      id
+    );
   return getTodo(id);
 }
 
@@ -327,16 +414,65 @@ export function deleteTodo(id: string): void {
   if (result.changes === 0) throw new TodoNotFoundError(`To-do "${id}" does not exist`);
 }
 
-/** Marks the to-do done. Idempotent: a to-do that is already done keeps its first `completedAt`. */
-export function completeTodo(id: string): Todo {
-  const now = Date.now();
-  getDb()
-    .prepare(
-      `UPDATE todo_items SET completed_at = ?, updated_at = ${NEXT_UPDATED_AT}
-        WHERE id = ? AND completed_at IS NULL`
-    )
-    .run(now, now, id);
+/** Creates the occurrence that follows a repeating to-do just completed and records it on that
+ * to-do, which therefore never creates a second one: not after a reopen, and not after the
+ * occurrence is deleted. The copy carries list, title, notes and rule. It keeps the assignee only
+ * while that member is still an active parent, because a completion must not fail over a member
+ * who left. Null when the to-do has no rule, has created its occurrence before, or has no next
+ * date.
+ */
+function createNextOccurrence(row: TodoRow, now: number): Todo | null {
+  const repeat = rowToRepeat(row);
+  if (repeat === null || row.next_todo_id !== null) return null;
+  const anchorDay = row.repeat_anchor_day as number;
+  const dueDate = nextRepeatDueDate(
+    row.due_date as string,
+    repeat,
+    anchorDay,
+    todayInHouseholdTz(now)
+  );
+  if (dueDate === null) return null;
+  const assignee =
+    row.assignee_member_id !== null && isActiveParent(row.assignee_member_id)
+      ? row.assignee_member_id
+      : null;
+  const id = randomUUID();
+  const db = getDb();
+  db.prepare(TODO_INSERT).run(
+    id,
+    row.list_id,
+    row.title,
+    row.notes,
+    dueDate,
+    assignee,
+    now,
+    now,
+    ...repeatColumns(repeat, dueDate, anchorDay)
+  );
+  db.prepare("UPDATE todo_items SET next_todo_id = ? WHERE id = ?").run(id, row.id);
   return getTodo(id);
+}
+
+/** Marks the to-do done. Idempotent: a to-do that is already done keeps its first `completedAt`.
+ * The completion of a repeating to-do and the creation of its next occurrence commit together.
+ */
+export function completeTodo(id: string): TodoCompletion {
+  const db = getDb();
+  return db.transaction((): TodoCompletion => {
+    const now = Date.now();
+    const completedNow =
+      db
+        .prepare(
+          `UPDATE todo_items SET completed_at = ?, updated_at = ${NEXT_UPDATED_AT}
+            WHERE id = ? AND completed_at IS NULL`
+        )
+        .run(now, now, id).changes === 1;
+    const row = readTodoRow(id);
+    return {
+      ...rowToTodo(row),
+      nextOccurrence: completedNow ? createNextOccurrence(row, now) : null,
+    };
+  })();
 }
 
 /** Reopens the to-do. Idempotent: an open to-do is returned unchanged. */

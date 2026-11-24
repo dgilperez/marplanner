@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
+import { vi } from "vitest";
 import { hashKey } from "../../src/server/auth/credentials";
 import { getDb } from "../../src/server/db/client";
 import type { Todo, TodoList } from "../../src/shared";
@@ -71,5 +72,30 @@ export async function withApp<T>(run: (app: FastifyInstance) => Promise<T>): Pro
     return await run(app);
   } finally {
     await app.close();
+  }
+}
+
+/** Stores the household timezone the way the settings API does. */
+export function setHouseholdTimezone(timezone: string): void {
+  getDb()
+    .prepare(
+      `INSERT INTO settings_objects (object_name, data, updated_at) VALUES ('locale', ?, ?)
+       ON CONFLICT(object_name) DO UPDATE SET data = excluded.data`
+    )
+    .run(JSON.stringify({ timezone, language: "en", weekStartDay: 1 }), Date.now());
+}
+
+/** Runs `run` with `Date` frozen at `iso`; `at` moves it. Timers keep running. */
+export async function withClock<T>(
+  iso: string,
+  run: (at: (iso: string) => void) => Promise<T>
+): Promise<T> {
+  const at = (next: string) => vi.setSystemTime(new Date(next));
+  vi.useFakeTimers({ toFake: ["Date"] });
+  try {
+    at(iso);
+    return await run(at);
+  } finally {
+    vi.useRealTimers();
   }
 }

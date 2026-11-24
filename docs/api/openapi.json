@@ -2848,6 +2848,10 @@
             "description": "stored member id, returned as it is even when that member has been archived or removed.",
             "type": ["string", "null"]
           },
+          "repeat": {
+            "anyOf": [{ "$ref": "#/components/schemas/TodoRepeat" }, { "type": "null" }],
+            "description": "null when the to-do does not repeat. A done to-do keeps its rule as a record."
+          },
           "completedAt": {
             "anyOf": [{ "type": "integer", "description": "epoch ms" }, { "type": "null" }],
             "description": "set while the to-do is done."
@@ -2862,11 +2866,74 @@
           "notes",
           "dueDate",
           "assigneeMemberId",
+          "repeat",
           "completedAt",
           "createdAt",
           "updatedAt"
         ],
         "additionalProperties": false
+      },
+      "TodoCompletion": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "listId": { "type": "string" },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "trimmed before it is stored."
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000,
+                "description": "blank notes are stored as null."
+              },
+              { "type": "null" }
+            ]
+          },
+          "dueDate": {
+            "anyOf": [
+              { "type": "string", "description": "YYYY-MM-DD (household-local)" },
+              { "type": "null" }
+            ]
+          },
+          "assigneeMemberId": {
+            "description": "stored member id, returned as it is even when that member has been archived or removed.",
+            "type": ["string", "null"]
+          },
+          "repeat": {
+            "anyOf": [{ "$ref": "#/components/schemas/TodoRepeat" }, { "type": "null" }],
+            "description": "null when the to-do does not repeat. A done to-do keeps its rule as a record."
+          },
+          "completedAt": {
+            "anyOf": [{ "type": "integer", "description": "epoch ms" }, { "type": "null" }],
+            "description": "set while the to-do is done."
+          },
+          "createdAt": { "type": "integer", "description": "epoch ms" },
+          "updatedAt": { "type": "integer", "description": "epoch ms" },
+          "nextOccurrence": {
+            "anyOf": [{ "$ref": "#/components/schemas/Todo" }, { "type": "null" }],
+            "description": "the open to-do this completion created for the next due date of the repeat rule; null when the to-do does not repeat, was already done, or created its next occurrence before."
+          }
+        },
+        "required": [
+          "id",
+          "listId",
+          "title",
+          "notes",
+          "dueDate",
+          "assigneeMemberId",
+          "repeat",
+          "completedAt",
+          "createdAt",
+          "updatedAt",
+          "nextOccurrence"
+        ],
+        "additionalProperties": false,
+        "description": "the done to-do with every field of Todo, plus the occurrence it created."
       },
       "TodoCreate": {
         "type": "object",
@@ -2902,6 +2969,10 @@
               },
               { "type": "null" }
             ]
+          },
+          "repeat": {
+            "description": "requires a due date.",
+            "anyOf": [{ "$ref": "#/components/schemas/TodoRepeat" }, { "type": "null" }]
           }
         },
         "required": ["listId", "title"],
@@ -2975,10 +3046,24 @@
               },
               { "type": "null" }
             ]
+          },
+          "repeat": {
+            "description": "requires a due date: clearing the due date of a repeating to-do needs repeat: null in the same request.",
+            "anyOf": [{ "$ref": "#/components/schemas/TodoRepeat" }, { "type": "null" }]
           }
         },
         "additionalProperties": false,
         "minProperties": 1
+      },
+      "TodoRepeat": {
+        "type": "object",
+        "properties": {
+          "every": { "type": "integer", "minimum": 1, "maximum": 99 },
+          "unit": { "type": "string", "enum": ["day", "week", "month", "year"] }
+        },
+        "required": ["every", "unit"],
+        "additionalProperties": false,
+        "description": "repeat rule: every `every` units, counted from the due date. A to-do with a rule has a due date."
       },
       "UnauthorizedError": {
         "type": "object",
@@ -11447,7 +11532,7 @@
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Todo" } } }
           },
           "400": {
-            "description": "non-object body, unsupported field, invalid field, unknown list, or an assignee who is not an active parent",
+            "description": "non-object body, unsupported field, invalid field, unknown list, an assignee who is not an active parent, or a repeat rule without a due date",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
             }
@@ -11842,7 +11927,7 @@
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Todo" } } }
           },
           "400": {
-            "description": "non-object or empty body, unsupported field, invalid field, unknown list, or a new assignee who is not an active parent",
+            "description": "non-object or empty body, unsupported field, invalid field, unknown list, a new assignee who is not an active parent, or a repeat rule left without a due date",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
             }
@@ -11955,7 +12040,7 @@
     "/api/todos/{id}/completion": {
       "post": {
         "operationId": "postTodosByIdCompletion",
-        "summary": "Mark a to-do done. Idempotent: a to-do that is already done keeps its completedAt.",
+        "summary": "Mark a to-do done. Idempotent: a to-do that is already done keeps its completedAt. Completing a repeating to-do creates its next occurrence once, in the same transaction, with the due date advanced by whole intervals until it is after the household's current date.",
         "tags": ["todos"],
         "parameters": [
           { "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }
@@ -11963,8 +12048,10 @@
         "security": [{ "deviceKeyCookie": [] }],
         "responses": {
           "200": {
-            "description": "the done to-do",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Todo" } } }
+            "description": "the done to-do and the occurrence it created, if any",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/TodoCompletion" } }
+            }
           },
           "401": {
             "description": "Missing, ambiguous or invalid API credential (shared authentication boundary).",
@@ -12015,7 +12102,7 @@
       },
       "delete": {
         "operationId": "deleteTodosByIdCompletion",
-        "summary": "Reopen a to-do. Idempotent: an open to-do is returned unchanged.",
+        "summary": "Reopen a to-do. Idempotent: an open to-do is returned unchanged. The occurrence a repeating to-do created when it was completed is kept.",
         "tags": ["todos"],
         "parameters": [
           { "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }

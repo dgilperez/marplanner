@@ -4,9 +4,10 @@ Behavior reference. The [owning contract](../architecture/contracts/todos.md) de
 and extension limits; [ADR-068](../architecture/decisions/ADR-068-household-todos.md) records the
 decisions.
 
-To-dos are things the adults of the household have to get done once, such as renewing a passport
-or calling the plumber. They are grouped in lists, and each one may carry notes, a due
-date and an adult assignee. The plugin is called "To-dos" in English and "Pendientes" in Spanish;
+To-dos are things the adults of the household have to get done, such as renewing a passport or
+calling the plumber. They are grouped in lists, and each one may carry notes, a due date, an adult
+assignee and a repeat rule for the ones that come back, such as a vehicle inspection or a boiler
+service. The plugin is called "To-dos" in English and "Pendientes" in Spanish;
 "Tasks" / "Tareas" already means the children's chores.
 
 The plugin starts inactive in Admin → Plugins. While it is active the kiosk has a To-dos page at
@@ -57,7 +58,35 @@ the overdue ones, the overdue ones marked and dated. Each row has a checkbox tha
 to-do, and a completed row leaves the group. The group reads again when the household day changes,
 when the tablet becomes visible again and after a completion.
 
+### User Story 7 — Things that come back
+
+An adult gives a to-do a due date and sets "Repeats" to days, weeks, months or years, every 1 to
+99 of them: the car insurance every year, a filter every 2 weeks. The row shows a repeat mark that
+says how often. When the adult marks the to-do done, it moves to Done and a copy with the next due
+date appears in the list, with the same title, notes, assignee and rule. The next due date is the
+old one moved forward by whole intervals until it is after today, so finishing a weekly to-do
+three weeks late leaves one to-do for next week and not three overdue ones.
+
 ### Edge Cases
+
+- A repeat rule needs a due date. The form disables "Repeats" until one is set, and the API
+  rejects a rule without one. Taking the due date away from a repeating to-do in the form also
+  stops it from repeating.
+- A monthly to-do due on the 31st is due on the last day of a shorter month and on the 31st again
+  after it: 31 January, 28 February, 31 March. A yearly to-do due on 29 February is due on
+  28 February in other years and on the 29th in a leap year. Changing the due date or the rule
+  makes the to-do count from the due date it has then.
+- "Today" for the next due date is the household's date in its timezone, not the server's.
+- A to-do creates its next occurrence once. Marking a done to-do done again, or two taps arriving
+  together, creates nothing more.
+- Reopening a done repeating to-do does not remove the occurrence it created: both are then open.
+  Completing the reopened one again creates nothing, also when the occurrence was deleted in the
+  meantime. Delete the one that is not wanted.
+- The done to-do keeps its rule as a record of what it was.
+- When the assignee was archived or is no longer an adult, the next occurrence is created with
+  nobody assigned and the completion still succeeds.
+- The next occurrence is due after today, so the Home agenda lists it when its date comes.
+- The repeat mark is shown on the To-dos page. The Home agenda rows do not carry it.
 
 - A list name that another list already has is a conflict. Names are compared exactly after
   trimming, so `Home` and `home` are two lists.
@@ -125,16 +154,29 @@ when the tablet becomes visible again and after a completion.
   before overdue ones, and MUST hide the group while the plugin is inactive. Contract: TODOS-AC-12.
 - **FR-015**: The agenda's empty message MUST appear only when there are neither events nor due
   to-dos. Contract: TODOS-AC-13.
+- **FR-016**: A repeat rule MUST be "every 1 to 99 days, weeks, months or years" and MUST have a
+  due date. Contract: TODOS-INV-11, TODOS-AC-16.
+- **FR-017**: Completing a repeating to-do MUST create exactly one next occurrence in the same
+  transaction, and never a second one for the same to-do. Contract: TODOS-INV-12, TODOS-AC-17.
+- **FR-018**: The next due date MUST be strictly after the household's current date, MUST clamp a
+  month or year step to the last day of a shorter month and MUST return to the original day of
+  the month. Contract: TODOS-INV-13, TODOS-AC-18.
+- **FR-019**: The next occurrence MUST be unassigned when the assignee is no longer an active
+  parent. Contract: TODOS-AC-19.
+- **FR-020**: The To-dos page MUST mark a repeating to-do with a label that says how often it
+  repeats and MUST show the next occurrence after a completion. Contract: TODOS-AC-21.
 
 ### Key Entities
 
 - **List**: id, name, created/updated timestamps; `openCount` is derived on read.
-- **To-do**: id, list id, title, notes, due date, assignee member id, completion time,
-  created/updated timestamps.
+- **To-do**: id, list id, title, notes, due date, assignee member id, repeat rule, completion
+  time, created/updated timestamps. The anchor day of the rule and the id of the occurrence the
+  to-do created are stored and not returned.
 
 ## Assumptions
 
 - Member roles and lifecycle are owned by Members (ADR-001, ADR-002); this plugin reads them
   through the host API.
-- Due dates are household-local calendar dates with no time of day.
+- Due dates are household-local calendar dates with no time of day. A repeat rule moves them as
+  calendar dates, so a clock change never shifts one.
 - The plugin owns no settings or scheduled jobs and ships no demo seed data.

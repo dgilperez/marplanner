@@ -6248,6 +6248,7 @@
             "Home agenda to-dos group shows the assignee like an event row: identity accent and names for assistive technology",
             "Home agenda to-dos group links the group header to the To-dos page",
             "Home agenda to-dos group completes a to-do from its checkbox, drops the row and reads the group again",
+            "Home agenda to-dos group drops a completed repeating to-do and lists its next occurrence on the day it is due",
             "Home agenda to-dos group reports a completion that failed and keeps the row",
             "Home agenda to-dos group removes the group with its last row and then says nothing is scheduled",
             "Home agenda to-dos group says nothing is scheduled only when there are neither events nor due to-dos",
@@ -6327,6 +6328,21 @@
             "TodosBoard dialog discards the form on Cancel and on Escape",
             "TodosBoard dialog keeps the to-do when its deletion is cancelled or fails",
             "TodosBoard dialog has no delete action while creating",
+            "TodosBoard repeating to-dos marks only a repeating row, with a label that says how often",
+            "TodosBoard repeating to-dos labels a repeating row in Spanish, singular for an interval of one",
+            "TodosBoard repeating to-dos offers the repeat control only once a due date is set",
+            "TodosBoard repeating to-dos adds a to-do that repeats every 2 weeks and shows it marked",
+            "TodosBoard repeating to-dos refuses an interval that is empty and sends nothing",
+            "TodosBoard repeating to-dos refuses an interval that is zero and sends nothing",
+            "TodosBoard repeating to-dos refuses an interval that is 100 and sends nothing",
+            "TodosBoard repeating to-dos refuses an interval that is a fraction and sends nothing",
+            "TodosBoard repeating to-dos sends no rule when the due date is taken away again before saving",
+            "TodosBoard repeating to-dos shows the stored rule and sends it only when it changed",
+            "TodosBoard repeating to-dos stops a to-do from repeating",
+            "TodosBoard repeating to-dos clears the rule together with the due date of a repeating to-do",
+            "TodosBoard repeating to-dos gives an existing to-do a rule",
+            "TodosBoard repeating to-dos shows the next occurrence in the open list after a repeating to-do is completed",
+            "TodosBoard repeating to-dos creates no second occurrence when the completed to-do is reopened and completed again",
             "TodosBoard loading and failures announces loading before the lists arrive",
             "TodosBoard loading and failures reports a failed load without raw diagnostics and recovers on retry",
             "TodosBoard loading and failures reports a failed read of the selected list and retries only that read",
@@ -6359,6 +6375,22 @@
             "to-do copy and order fills placeholders with the values as they are, in one pass",
             "to-do copy and order leaves a placeholder nobody filled as written",
             "to-do copy and order orders lists by name in the UI language without moving the read",
+            "to-do repeat label en: every 1 day reads Repeats every day",
+            "to-do repeat label en: every 3 day reads Repeats every 3 days",
+            "to-do repeat label en: every 1 week reads Repeats every week",
+            "to-do repeat label en: every 2 week reads Repeats every 2 weeks",
+            "to-do repeat label en: every 1 month reads Repeats every month",
+            "to-do repeat label en: every 6 month reads Repeats every 6 months",
+            "to-do repeat label en: every 1 year reads Repeats every year",
+            "to-do repeat label en: every 99 year reads Repeats every 99 years",
+            "to-do repeat label es: every 1 day reads Se repite cada día",
+            "to-do repeat label es: every 3 day reads Se repite cada 3 días",
+            "to-do repeat label es: every 1 week reads Se repite cada semana",
+            "to-do repeat label es: every 2 week reads Se repite cada 2 semanas",
+            "to-do repeat label es: every 1 month reads Se repite cada mes",
+            "to-do repeat label es: every 6 month reads Se repite cada 6 meses",
+            "to-do repeat label es: every 1 year reads Se repite cada año",
+            "to-do repeat label es: every 99 year reads Se repite cada 99 años",
             "to-dos request failures chooses the copy by the API's stable code",
             "todos-i18n-parity has every to-dos key in English and Spanish with non-empty copy",
             "todos-i18n-parity never calls to-dos tasks, which the kiosk reserves for the children's chores",
@@ -6374,6 +6406,106 @@
             "apiFetch rejects without a code for codes that are not strings",
             "apiFetch rejects without a code for a null body",
             "apiFetch builds a JSON request"
+          ],
+          "tests/client/todos-repeat.test.ts": [
+            "isTodoRepeat accepts every day",
+            "isTodoRepeat accepts every 2 weeks",
+            "isTodoRepeat accepts every 6 months",
+            "isTodoRepeat accepts the longest interval",
+            "isTodoRepeat rejects null",
+            "isTodoRepeat rejects a string",
+            "isTodoRepeat rejects an array",
+            "isTodoRepeat rejects a missing unit",
+            "isTodoRepeat rejects a missing interval",
+            "isTodoRepeat rejects an unknown unit",
+            "isTodoRepeat rejects a zero interval",
+            "isTodoRepeat rejects a negative interval",
+            "isTodoRepeat rejects an interval over the cap",
+            "isTodoRepeat rejects a fractional interval",
+            "isTodoRepeat rejects a numeric string interval",
+            "isTodoRepeat rejects an extra field",
+            "sameTodoRepeat compares rules by interval and unit, and no rule only with no rule",
+            "nextRepeatDueDate advances a to-do completed on its due date by 1 day",
+            "nextRepeatDueDate advances a to-do completed on its due date by 10 days across a month end",
+            "nextRepeatDueDate advances a to-do completed on its due date by 1 day across a year end",
+            "nextRepeatDueDate advances a to-do completed on its due date by 1 day into a leap day",
+            "nextRepeatDueDate advances a to-do completed on its due date by 2 weeks",
+            "nextRepeatDueDate advances a to-do completed on its due date by 1 week across the day clocks change",
+            "nextRepeatDueDate advances a to-do completed on its due date by 1 month",
+            "nextRepeatDueDate advances a to-do completed on its due date by 3 months across a year end",
+            "nextRepeatDueDate advances a to-do completed on its due date by 1 year",
+            "nextRepeatDueDate advances a to-do completed on its due date by 5 years",
+            "nextRepeatDueDate clamps a month step to the last day of a shorter month",
+            "nextRepeatDueDate keeps the original day of the month after a clamped step: 31 Jan, 28 Feb, 31 Mar",
+            "nextRepeatDueDate moves a 29 February yearly to-do to 28 February and back to the 29th in a leap year",
+            "nextRepeatDueDate treats 2100 as a common year and 2000 as a leap year",
+            "nextRepeatDueDate returns a date strictly after today when the to-do is finished late",
+            "nextRepeatDueDate skips an occurrence that falls on today: the next one is after today",
+            "nextRepeatDueDate stays on the cycle of the due date when catching up, and keeps the anchor",
+            "nextRepeatDueDate advances one interval when the to-do is finished before its due date",
+            "nextRepeatDueDate catches up from a due date centuries back to the same cycle",
+            "nextRepeatDueDate has no next date once the calendar's four-digit years run out",
+            "repeatAnchorDay is the day of the month of the due date"
+          ],
+          "tests/boundary/todos-repeat.test.ts": [
+            "todos repeat — rule on create and edit POST stores the rule and every read returns it; a to-do without one reads null",
+            "todos repeat — rule on create and edit POST with a rule without a due date -> 400 and nothing is stored",
+            "todos repeat — rule on create and edit POST with a rule with a null due date -> 400 and nothing is stored",
+            "todos repeat — rule on create and edit POST with a string rule -> 400 and nothing is stored",
+            "todos repeat — rule on create and edit POST with an unknown unit -> 400 and nothing is stored",
+            "todos repeat — rule on create and edit POST with a zero interval -> 400 and nothing is stored",
+            "todos repeat — rule on create and edit POST with an interval of 100 -> 400 and nothing is stored",
+            "todos repeat — rule on create and edit POST with a fractional interval -> 400 and nothing is stored",
+            "todos repeat — rule on create and edit POST with a rule missing its unit -> 400 and nothing is stored",
+            "todos repeat — rule on create and edit POST with a rule with an extra field -> 400 and nothing is stored",
+            "todos repeat — rule on create and edit POST with a client-supplied next occurrence -> 400 and nothing is stored",
+            "todos repeat — rule on create and edit accepts the shortest and the longest interval",
+            "todos repeat — rule on create and edit PATCH sets, changes and clears the rule of a dated to-do",
+            "todos repeat — rule on create and edit PATCH gives an undated to-do a rule only together with a due date",
+            "todos repeat — rule on create and edit PATCH clears the due date of a repeating to-do only when it clears the rule too",
+            "todos repeat — rule on create and edit PATCH with an invalid rule -> 400 and the to-do is unchanged",
+            "todos repeat — rule on create and edit PATCH with an anchor day -> 400 and the to-do is unchanged",
+            "todos repeat — rule on create and edit PATCH with a next occurrence -> 400 and the to-do is unchanged",
+            "todos repeat — completing creates the next occurrence creates one open to-do with the same list, title, notes, assignee and rule",
+            "todos repeat — completing creates the next occurrence answers a to-do without a rule with no next occurrence and stores nothing new",
+            "todos repeat — completing creates the next occurrence advances the due date by a day rule",
+            "todos repeat — completing creates the next occurrence advances the due date by a week rule",
+            "todos repeat — completing creates the next occurrence advances the due date by a month rule",
+            "todos repeat — completing creates the next occurrence advances the due date by a year rule",
+            "todos repeat — completing creates the next occurrence a to-do finished three cycles late gets one next occurrence, after today",
+            "todos repeat — completing creates the next occurrence an occurrence that would fall on today is skipped",
+            "todos repeat — completing creates the next occurrence takes today from the household timezone ahead of UTC",
+            "todos repeat — completing creates the next occurrence takes today from the household timezone behind UTC",
+            "todos repeat — completing creates the next occurrence takes today from the household timezone on UTC",
+            "todos repeat — completing creates the next occurrence a monthly to-do due on the 31st goes 28 Feb and back to 31 Mar",
+            "todos repeat — completing creates the next occurrence a yearly to-do due on 29 February returns to the 29th in the next leap year",
+            "todos repeat — completing creates the next occurrence an edit that leaves due date and rule alone keeps the original day of the month",
+            "todos repeat — completing creates the next occurrence an edit that changes the due date anchors on the due date again",
+            "todos repeat — completing creates the next occurrence an edit that changes the rule anchors on the due date again",
+            "todos repeat — completing creates the next occurrence creates no next occurrence past the year 9999 and still completes",
+            "todos repeat — one next occurrence per to-do a second completion creates nothing and reports no next occurrence",
+            "todos repeat — one next occurrence per to-do two completions sent at once create one next occurrence",
+            "todos repeat — one next occurrence per to-do reopening keeps the occurrence already created, and completing again creates no other",
+            "todos repeat — one next occurrence per to-do a done to-do that is given a rule afterwards creates nothing when completed again",
+            "todos repeat — one next occurrence per to-do leaves the to-do open when its next occurrence cannot be stored",
+            "todos repeat — one next occurrence per to-do deleting the created occurrence does not let the completed to-do create another",
+            "todos repeat — one next occurrence per to-do deleting the completed to-do keeps the occurrence it created, which repeats in turn",
+            "todos repeat — assignee of the next occurrence is nobody when the assignee was archived; the completion still succeeds",
+            "todos repeat — assignee of the next occurrence is nobody when the assignee became a child; the completion still succeeds",
+            "todos repeat — assignee of the next occurrence is nobody when the assignee was removed; the completion still succeeds",
+            "todos repeat — assignee of the next occurrence stays nobody for an unassigned to-do",
+            "todos repeat — stored shape the table refuses an interval of 0",
+            "todos repeat — stored shape the table refuses an interval of 100",
+            "todos repeat — stored shape the table refuses a fractional interval",
+            "todos repeat — stored shape the table refuses an unknown unit",
+            "todos repeat — stored shape the table refuses a rule without an interval",
+            "todos repeat — stored shape the table refuses a rule without a unit",
+            "todos repeat — stored shape the table refuses a rule without an anchor day",
+            "todos repeat — stored shape the table refuses an anchor day of 32",
+            "todos repeat — stored shape the table refuses a rule without a due date",
+            "todos repeat — stored shape the table refuses an anchor day or an interval on a to-do without a rule",
+            "0004_todo_repeat.sql on a database that already holds to-dos keeps every to-do as it was, with no rule",
+            "0004_todo_repeat.sql on a database that already holds to-dos keeps the indexes, the earlier checks and the cascade from the list"
           ]
         }
       },
@@ -6458,6 +6590,7 @@
           ],
           "tests/e2e/todos.spec.ts": [
             "8a9e645a89191b4a5606-b1ed5d2b20da9f5eb29c",
+            "8a9e645a89191b4a5606-9ad53203e926e9437a41",
             "8a9e645a89191b4a5606-b5b5073016b5ec16ee52"
           ],
           "tests/e2e/weather.spec.ts": [
@@ -11864,10 +11997,10 @@
       "src/server/modules/todos/index.ts": {
         "layer": "server",
         "minimumTotals": {
-          "lines": 108,
-          "statements": 124,
-          "functions": 30,
-          "branches": 86
+          "lines": 137,
+          "statements": 158,
+          "functions": 38,
+          "branches": 119
         },
         "minimumRates": {
           "lines": 100,
@@ -11879,8 +12012,8 @@
       "src/server/openapi/todos.ts": {
         "layer": "server",
         "minimumTotals": {
-          "lines": 20,
-          "statements": 21,
+          "lines": 22,
+          "statements": 23,
           "functions": 1,
           "branches": 0
         },
@@ -11954,10 +12087,10 @@
       "src/client/todos/TodoDialog.tsx": {
         "layer": "client",
         "minimumTotals": {
-          "lines": 44,
-          "statements": 50,
-          "functions": 17,
-          "branches": 44
+          "lines": 59,
+          "statements": 66,
+          "functions": 20,
+          "branches": 70
         },
         "minimumRates": {
           "lines": 100,
@@ -12002,7 +12135,7 @@
           "lines": 76,
           "statements": 87,
           "functions": 36,
-          "branches": 75
+          "branches": 77
         },
         "minimumRates": {
           "lines": 100,
@@ -12014,10 +12147,10 @@
       "src/client/todos/todo-presentation.ts": {
         "layer": "client",
         "minimumTotals": {
-          "lines": 11,
-          "statements": 13,
-          "functions": 12,
-          "branches": 13
+          "lines": 13,
+          "statements": 15,
+          "functions": 13,
+          "branches": 15
         },
         "minimumRates": {
           "lines": 100,
@@ -12084,6 +12217,36 @@
           "statements": 99.12,
           "functions": 100,
           "branches": 97.14
+        }
+      },
+      "src/shared/todoRepeat.ts": {
+        "layer": "shared",
+        "minimumTotals": {
+          "lines": 32,
+          "statements": 38,
+          "functions": 9,
+          "branches": 26
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 100
+        }
+      },
+      "src/client/todos/TodoRepeatMark.tsx": {
+        "layer": "client",
+        "minimumTotals": {
+          "lines": 3,
+          "statements": 3,
+          "functions": 1,
+          "branches": 0
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 100
         }
       }
     }

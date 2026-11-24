@@ -28,6 +28,7 @@ import {
 import { TodoDialog } from "./TodoDialog";
 import { TodoDue } from "./TodoDue";
 import { TodoListDialog } from "./TodoListDialog";
+import { TodoRepeatMark } from "./TodoRepeatMark";
 import { fillMessage, todoAssignees } from "./todo-presentation";
 import { useTodosWorkspace, type WriteResult } from "./useTodosWorkspace";
 
@@ -62,6 +63,7 @@ function TodoRow({ todo, today, profiles, pending, onToggle, onEdit }: TodoRowPr
         {(todo.dueDate !== null || assigneeLabel !== undefined) && (
           <p className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 pb-2 pl-[calc(var(--control-height)+0.5rem)] text-sm">
             <TodoDue todo={todo} today={today} />
+            {todo.repeat && <TodoRepeatMark repeat={todo.repeat} />}
             {assigneeLabel !== undefined && (
               <span data-testid="todo-assignee" className="inline-flex items-center gap-1.5">
                 {assignee && (

@@ -10,12 +10,18 @@ import {
   TODO_TITLE_MAX_LENGTH,
   TODO_WRITE_FIELDS,
   hasVisibleCharacter,
+  isTodoRepeat,
+  nextRepeatDueDate,
+  repeatAnchorDay,
+  sameTodoRepeat,
   type Member,
   type Todo,
+  type TodoCompletion,
   type TodoList,
+  type TodoRepeat,
   type TodoStatusFilter,
 } from "../../../src/shared";
-import { isStrictCalendarDate } from "../../../src/shared/householdTime";
+import { isStrictCalendarDate, localDateParts } from "../../../src/shared/householdTime";
 import type { PluginCatalogEntry, PluginId, PluginState } from "../../../src/shared/plugins";
 import { json } from "./fetchRoutes";
 
@@ -134,9 +140,10 @@ function byNameNoCase(a: { name: string }, b: { name: string }): number {
 
 /** An in-memory stand-in for the to-dos HTTP API. It follows `src/server/modules/todos` rule by
  * rule, because a laxer fake lets a client bug pass: allow-listed bodies, trimmed and capped
- * labels, strict dates, the adults-only assignee checked only when it changes, every listing
- * filter, both orders, idempotent completion and the lifecycle gate's 503. Seeds are stored as
- * given, without validation. Every request is recorded as `"METHOD /path?query"`.
+ * labels, strict dates, the adults-only assignee checked only when it changes, repeat rules that
+ * need a due date, every listing filter, both orders, idempotent completion that creates the next
+ * occurrence of a repeating to-do once, and the lifecycle gate's 503. Seeds are stored as given,
+ * without validation. Every request is recorded as `"METHOD /path?query"`.
  */
 export function todosBackend(options: TodosBackendOptions = {}) {
   const members = options.members ?? householdMembers;
@@ -151,6 +158,7 @@ export function todosBackend(options: TodosBackendOptions = {}) {
         notes: null,
         dueDate: null,
         assigneeMemberId: null,
+        repeat: null,
         completedAt: null,
         createdAt: ++sequence,
         updatedAt: sequence,
@@ -159,6 +167,9 @@ export function todosBackend(options: TodosBackendOptions = {}) {
     ])
   );
   const requests: RecordedRequest[] = [];
+  /** The server's `repeat_anchor_day` and `next_todo_id` columns, which no read returns. */
+  const anchorDays = new Map<string, number>();
+  const nextTodoIds = new Map<string, string>();
 
   const view = (list: { id: string; name: string }): TodoList => ({
     id: list.id,
@@ -207,12 +218,55 @@ export function todosBackend(options: TodosBackendOptions = {}) {
   function assignee(value: unknown): string | null {
     if (value === undefined || value === null) return null;
     if (typeof value !== "string") throw invalid("assigneeMemberId must be a string or null");
-    const adult = members.some(
-      (candidate) =>
-        candidate.id === value && candidate.lifecycle === "active" && candidate.role === Role.parent
-    );
-    if (!adult) throw invalid("assignee must be an active parent");
+    if (!isActiveParent(value)) throw invalid("assignee must be an active parent");
     return value;
+  }
+  const isActiveParent = (id: string) =>
+    members.some(
+      (candidate) =>
+        candidate.id === id && candidate.lifecycle === "active" && candidate.role === Role.parent
+    );
+  function repeat(value: unknown): TodoRepeat | null {
+    if (value === undefined || value === null) return null;
+    if (!isTodoRepeat(value)) throw invalid("repeat must be null or { every, unit }");
+    return { every: value.every, unit: value.unit };
+  }
+  /** Checks that a rule has a due date and stores its anchor day, kept when `sameCycle`. */
+  function anchor(id: string, rule: TodoRepeat | null, due: string | null, sameCycle = false) {
+    if (rule === null) return void anchorDays.delete(id);
+    if (due === null) throw invalid("a repeating to-do needs a due date");
+    anchorDays.set(id, (sameCycle ? anchorDays.get(id) : undefined) ?? repeatAnchorDay(due));
+  }
+  function today(): string {
+    const { y, m, d } = localDateParts(Date.now(), options.timezone ?? "UTC");
+    return [
+      String(y).padStart(4, "0"),
+      String(m).padStart(2, "0"),
+      String(d).padStart(2, "0"),
+    ].join("-");
+  }
+  /** The server's `createNextOccurrence`. */
+  function nextOccurrence(todo: Todo): Todo | null {
+    if (todo.repeat === null || todo.dueDate === null || nextTodoIds.has(todo.id)) return null;
+    const anchorDay = anchorDays.get(todo.id) ?? repeatAnchorDay(todo.dueDate);
+    const due = nextRepeatDueDate(todo.dueDate, todo.repeat, anchorDay, today());
+    if (due === null) return null;
+    const created: Todo = {
+      ...todo,
+      id: `todo-${++sequence}`,
+      dueDate: due,
+      assigneeMemberId:
+        todo.assigneeMemberId !== null && isActiveParent(todo.assigneeMemberId)
+          ? todo.assigneeMemberId
+          : null,
+      completedAt: null,
+      createdAt: sequence,
+      updatedAt: sequence,
+    };
+    todos.set(created.id, created);
+    anchorDays.set(created.id, anchorDay);
+    nextTodoIds.set(todo.id, created.id);
+    return created;
   }
   const listName = (body: unknown) =>
     label(fields(body, TODO_LIST_WRITE_FIELDS).name, "name", TODO_LIST_NAME_MAX_LENGTH);
@@ -299,19 +353,30 @@ export function todosBackend(options: TodosBackendOptions = {}) {
         dueDate: dueDate(input.dueDate),
         listId: listId(input.listId),
         assigneeMemberId: assignee(input.assigneeMemberId),
+        repeat: repeat(input.repeat),
         id: `todo-${++sequence}`,
         completedAt: null,
         createdAt: sequence,
         updatedAt: sequence,
       };
+      anchor(created.id, created.repeat, created.dueDate);
       todos.set(created.id, created);
       return json(created, 201);
     }
     const completionMatch = /^\/api\/todos\/([^/]+)\/completion$/.exec(path);
     if (completionMatch) {
       const todo = found(todos.get(decodeURIComponent(completionMatch[1])));
-      todo.completedAt = method === "POST" ? (todo.completedAt ?? NOW) : null;
-      return json(todo);
+      if (method === "DELETE") {
+        todo.completedAt = null;
+        return json(todo);
+      }
+      const completedNow = todo.completedAt === null;
+      todo.completedAt ??= NOW;
+      const completion: TodoCompletion = {
+        ...todo,
+        nextOccurrence: completedNow ? nextOccurrence(todo) : null,
+      };
+      return json(completion);
     }
     const todoMatch = /^\/api\/todos\/([^/]+)$/.exec(path);
     if (todoMatch) {
@@ -325,7 +390,8 @@ export function todosBackend(options: TodosBackendOptions = {}) {
       const input = fields(body, TODO_WRITE_FIELDS);
       if (Object.keys(input).length === 0) throw invalid("body must name at least one field");
       const todo = found(todos.get(id));
-      Object.assign(todo, {
+      const next: Todo = {
+        ...todo,
         ...("title" in input && { title: label(input.title, "title", TODO_TITLE_MAX_LENGTH) }),
         ...("notes" in input && { notes: notes(input.notes) }),
         ...("dueDate" in input && { dueDate: dueDate(input.dueDate) }),
@@ -335,8 +401,15 @@ export function todosBackend(options: TodosBackendOptions = {}) {
           input.assigneeMemberId !== todo.assigneeMemberId && {
             assigneeMemberId: assignee(input.assigneeMemberId),
           }),
-        updatedAt: ++sequence,
-      });
+        ...("repeat" in input && { repeat: repeat(input.repeat) }),
+      };
+      anchor(
+        id,
+        next.repeat,
+        next.dueDate,
+        next.dueDate === todo.dueDate && sameTodoRepeat(next.repeat, todo.repeat)
+      );
+      Object.assign(todo, next, { updatedAt: ++sequence });
       return json(todo);
     }
     throw new Error(`unexpected fetch: ${method} ${path}${url.search}`);

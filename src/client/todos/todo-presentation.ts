@@ -1,7 +1,7 @@
 import { resolveAssignees, type AgendaAssignees } from "@/home/agenda-presentation";
-import type { Language } from "@/i18n/messages";
+import type { Language, MessageKey } from "@/i18n/messages";
 import { formatCalendarDate } from "@/lib/household-date";
-import { Role, type Member, type Todo, type TodoList } from "../../shared";
+import { Role, type Member, type Todo, type TodoList, type TodoRepeat } from "../../shared";
 
 /** An open to-do whose due date is before the household's today. */
 export function isOverdue(todo: Pick<Todo, "dueDate" | "completedAt">, today: string): boolean {
@@ -56,4 +56,10 @@ export function fillMessage(
   return template.replace(/\{(\w+)\}/g, (placeholder, name: string) =>
     Object.hasOwn(values, name) ? String(values[name]) : placeholder
   );
+}
+
+/** How often a to-do repeats, as a sentence: "Repeats every 2 weeks", "Repeats every week". */
+export function repeatLabel(repeat: TodoRepeat, t: (key: MessageKey) => string): string {
+  const count = repeat.every === 1 ? "one" : "other";
+  return fillMessage(t(`todos.repeat.${repeat.unit}.${count}`), { count: repeat.every });
 }
