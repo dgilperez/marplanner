@@ -6445,6 +6445,7 @@
             "nextRepeatDueDate advances one interval when the to-do is finished before its due date",
             "nextRepeatDueDate catches up from a due date centuries back to the same cycle",
             "nextRepeatDueDate has no next date once the calendar's four-digit years run out",
+            "nextRepeatDueDate keeps years below 100 as written instead of reading them as 19xx",
             "repeatAnchorDay is the day of the month of the due date"
           ],
           "tests/boundary/todos-repeat.test.ts": [

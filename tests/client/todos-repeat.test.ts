@@ -138,6 +138,13 @@ describe("nextRepeatDueDate", () => {
     expect(next("9999-12-31", every(1, "day"), "2026-11-24")).toBeNull();
     expect(next("9990-06-01", every(9, "year"), "2026-11-24")).toBe("9999-06-01");
   });
+
+  it("keeps years below 100 as written instead of reading them as 19xx", () => {
+    expect(next("0050-01-10", every(3, "day"), "0050-01-10")).toBe("0050-01-13");
+    expect(next("0099-12-30", every(1, "week"), "0099-12-30")).toBe("0100-01-06");
+    // Year 0 is a leap year of the proleptic calendar; 1900 is not.
+    expect(next("0000-01-31", every(1, "month"), "0000-02-10")).toBe("0000-02-29");
+  });
 });
 
 describe("repeatAnchorDay", () => {

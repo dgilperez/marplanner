@@ -51,7 +51,19 @@ function calendarDate(year: number, monthIndex: number, day: number): string | n
 }
 
 const parts = (date: string) => date.split("-").map(Number) as [number, number, number];
-const utcDay = (date: string) => Date.UTC(parts(date)[0], parts(date)[1] - 1, parts(date)[2]);
+
+/** The UTC midnight of a calendar day. `Date.UTC` reads the years 0 to 99 as 1900 to 1999, so
+ * the year is set separately. Day 0 is the last day of the month before. */
+function utcMidnight(year: number, monthIndex: number, day: number): Date {
+  const date = new Date(0);
+  date.setUTCFullYear(year, monthIndex, day);
+  return date;
+}
+
+function utcDay(date: string): number {
+  const [year, month, day] = parts(date);
+  return utcMidnight(year, month - 1, day).getTime();
+}
 
 /** `dueDate` advanced by `steps` intervals. A month or year step lands on `anchorDay`, or on the
  * last day of a month that is shorter. Null past the year 9999, where `YYYY-MM-DD` ends. */
@@ -71,7 +83,7 @@ function occurrence(
   const months = year * 12 + (month - 1) + steps * repeat.every * MONTHS_PER_STEP[repeat.unit];
   const nextYear = Math.floor(months / 12);
   const nextMonthIndex = months % 12;
-  const lastDay = new Date(Date.UTC(nextYear, nextMonthIndex + 1, 0)).getUTCDate();
+  const lastDay = utcMidnight(nextYear, nextMonthIndex + 1, 0).getUTCDate();
   return calendarDate(nextYear, nextMonthIndex, Math.min(anchorDay, lastDay));
 }
 
