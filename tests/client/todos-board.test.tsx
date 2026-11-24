@@ -20,7 +20,7 @@ function held() {
 
 const lists = [
   { id: "home", name: "Casa" },
-  { id: "move", name: "Mudanza a Ouces" },
+  { id: "move", name: "Mudanza de casa" },
 ];
 const todos: TodosBackendOptions["todos"] = [
   { id: "undated", listId: "home", title: "Fix the tap" },
@@ -91,7 +91,7 @@ describe("TodosBoard lists", () => {
         .map((radio) => [radio.closest("label")?.textContent, (radio as HTMLInputElement).checked])
     ).toEqual([
       ["Casa (4)", true],
-      ["Mudanza a Ouces (1)", false],
+      ["Mudanza de casa (1)", false],
     ]);
     expect(screen.getByRole("heading", { level: 1, name: "To-dos" })).toBeVisible();
     await openList();
@@ -101,7 +101,7 @@ describe("TodosBoard lists", () => {
   it("loads the to-dos of the list that is picked", async () => {
     mount();
     await openList();
-    fireEvent.click(screen.getByRole("radio", { name: "Mudanza a Ouces (1)" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Mudanza de casa (1)" }));
     expect(await screen.findByRole("checkbox", { name: "Buy boxes" })).toBeVisible();
     expect(screen.queryByRole("checkbox", { name: "Fix the tap" })).not.toBeInTheDocument();
   });
@@ -169,7 +169,7 @@ describe("TodosBoard lists", () => {
     await unlockListDeletion();
     await screen.findByText("Its 5 to-dos are deleted with it.");
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-    expect(await screen.findByRole("radio", { name: "Mudanza a Ouces (1)" })).toBeChecked();
+    expect(await screen.findByRole("radio", { name: "Mudanza de casa (1)" })).toBeChecked();
     expect(screen.queryByRole("radio", { name: /Casa/ })).not.toBeInTheDocument();
     expect(backend.keys("DELETE")).toEqual(["DELETE /api/todos/lists/home"]);
     expect(await screen.findByRole("checkbox", { name: "Buy boxes" })).toBeVisible();
@@ -405,7 +405,7 @@ describe("TodosBoard list deletion and the admin PIN", () => {
     await unlockListDeletion();
     await screen.findByText("Its 5 to-dos are deleted with it.");
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-    expect(await screen.findByRole("radio", { name: "Mudanza a Ouces (1)" })).toBeChecked();
+    expect(await screen.findByRole("radio", { name: "Mudanza de casa (1)" })).toBeChecked();
 
     fireEvent.click(screen.getByRole("button", { name: "Delete list" }));
     expect(await pinDialog()).toBeVisible();
@@ -530,7 +530,7 @@ describe("TodosBoard to-dos", () => {
   it("names an archived assignee without an identity colour", async () => {
     mount();
     await openList();
-    fireEvent.click(screen.getByRole("radio", { name: "Mudanza a Ouces (1)" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Mudanza de casa (1)" }));
     await screen.findByRole("checkbox", { name: "Buy boxes" });
     const assignee = within(rowOf("Buy boxes")).getByTestId("todo-assignee");
     expect(assignee).toHaveTextContent("Eli");
@@ -754,7 +754,7 @@ describe("TodosBoard to-dos", () => {
     await openList();
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
     await screen.findByRole("list", { name: "Done to-dos" });
-    fireEvent.click(screen.getByRole("radio", { name: "Mudanza a Ouces (1)" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Mudanza de casa (1)" }));
     await screen.findByRole("checkbox", { name: "Buy boxes" });
     expect(screen.getByRole("button", { name: "Done" })).toHaveAttribute("aria-expanded", "false");
   });
@@ -812,7 +812,7 @@ describe("TodosBoard dialog", () => {
       },
     ]);
     expect(screen.getByRole("textbox", { name: "New to-do" })).toHaveValue("");
-    expect(await screen.findByRole("radio", { name: "Mudanza a Ouces (2)" })).toBeVisible();
+    expect(await screen.findByRole("radio", { name: "Mudanza de casa (2)" })).toBeVisible();
   });
 
   it("allows nobody as assignee and requires a title", async () => {
@@ -867,7 +867,7 @@ describe("TodosBoard dialog", () => {
       expect(screen.queryByRole("checkbox", { name: "Fix the tap" })).not.toBeInTheDocument()
     );
     expect(backend.bodies("PATCH /api/todos/undated")).toEqual([{ listId: "move" }]);
-    expect(screen.getByRole("radio", { name: "Mudanza a Ouces (2)" })).toBeVisible();
+    expect(screen.getByRole("radio", { name: "Mudanza de casa (2)" })).toBeVisible();
   });
 
   it("closes an unchanged edit without a request", async () => {
@@ -883,7 +883,7 @@ describe("TodosBoard dialog", () => {
   it("keeps an archived assignee selectable and leaves it alone unless it is changed", async () => {
     const backend = mount();
     await openList();
-    fireEvent.click(screen.getByRole("radio", { name: "Mudanza a Ouces (1)" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Mudanza de casa (1)" }));
     fireEvent.click(await screen.findByRole("button", { name: "Edit: Buy boxes" }));
     const dialog = await screen.findByRole("dialog", { name: "Edit to-do" });
     expect(within(dialog).getByRole("checkbox", { name: "Eli" })).toBeChecked();
@@ -1081,7 +1081,7 @@ describe("TodosBoard loading and failures", () => {
       },
     });
     await openList();
-    fireEvent.click(screen.getByRole("radio", { name: "Mudanza a Ouces (1)" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Mudanza de casa (1)" }));
     fireEvent.click(screen.getByRole("radio", { name: "Casa (4)" }));
     expect(await screen.findByRole("checkbox", { name: "Fix the tap" })).toBeVisible();
     await act(async () => release());
@@ -1099,7 +1099,7 @@ describe("TodosBoard loading and failures", () => {
       },
     });
     await openList();
-    fireEvent.click(screen.getByRole("radio", { name: "Mudanza a Ouces (1)" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Mudanza de casa (1)" }));
     fireEvent.click(screen.getByRole("radio", { name: "Casa (4)" }));
     expect(await screen.findByRole("checkbox", { name: "Fix the tap" })).toBeVisible();
     await slow.release();
