@@ -281,12 +281,13 @@ export function deleteTodoList(id: string): void {
 
 /** Filters as they arrive in a query string: unvalidated, and an array when repeated. */
 export type TodoFilters = Partial<
-  Record<"listId" | "status" | "dueBy" | "assigneeMemberId", unknown>
+  Record<"listId" | "status" | "dueFrom" | "dueBy" | "assigneeMemberId", unknown>
 >;
 
 /** To-dos matching every given filter, `status` defaulting to `open`. Order: open before done,
  * then due date ascending with undated last, then creation order. `dueBy` keeps to-dos due on or
- * before that date, so it includes overdue ones and drops undated ones. `listId` and
+ * before that date, so it includes overdue ones and drops undated ones; `dueFrom` keeps to-dos due
+ * on or after its date and drops undated ones too, so the two bound a range. `listId` and
  * `assigneeMemberId` match the stored ids as they are; an id nobody holds matches nothing.
  */
 export function listTodos(query: TodoFilters = {}): Todo[] {
@@ -299,9 +300,13 @@ export function listTodos(query: TodoFilters = {}): Todo[] {
   const params: string[] = [];
   if (status === "open") conditions.push("completed_at IS NULL");
   if (status === "done") conditions.push("completed_at IS NOT NULL");
-  if (query.dueBy !== undefined) {
-    conditions.push("due_date <= ?");
-    params.push(parseDate(query.dueBy, "dueBy"));
+  for (const [key, comparison] of [
+    ["dueFrom", "due_date >= ?"],
+    ["dueBy", "due_date <= ?"],
+  ] as const) {
+    if (query[key] === undefined) continue;
+    conditions.push(comparison);
+    params.push(parseDate(query[key], key));
   }
   for (const [key, column] of [
     ["listId", "list_id"],

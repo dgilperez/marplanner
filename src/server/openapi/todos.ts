@@ -203,6 +203,13 @@ export const todosSchemas = defineRouteSchemas({
     querystring: z.object({
       listId: z.string().optional(),
       status: z.enum(TODO_STATUS_FILTERS).meta({ default: "open" }).optional(),
+      dueFrom: z
+        .string()
+        .meta({
+          description:
+            "YYYY-MM-DD. Keeps to-dos due on or after this date; undated to-dos are dropped. With dueBy it bounds a range, both ends included.",
+        })
+        .optional(),
       dueBy: z
         .string()
         .meta({
@@ -217,7 +224,7 @@ export const todosSchemas = defineRouteSchemas({
     }),
     response: {
       200: json("matching to-dos (possibly empty)", z.array(Todo)),
-      400: json("unknown status, invalid dueBy, or a repeated parameter", ErrorSchema),
+      400: json("unknown status, invalid dueFrom or dueBy, or a repeated parameter", ErrorSchema),
       ...gated,
     },
   },

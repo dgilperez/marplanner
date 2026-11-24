@@ -3,6 +3,7 @@ import { Temporal } from "temporal-polyfill";
 
 import { cn } from "@/lib/utils";
 import { memberEventStyle } from "@/calendar/member-event-style";
+import type { DaySlotRef } from "@/calendar/day-slots";
 import {
   buildCalendarDays,
   getEventsForCalendarDay,
@@ -22,6 +23,8 @@ interface CalendarMonthViewProps {
   weekdayLabels: readonly string[];
   locale: string;
   onEventClick: (event: FeedItem) => void;
+  /** Puts an empty slot after each day's events for a plugin contribution to draw into. */
+  daySlotRef: DaySlotRef;
 }
 
 function eventStyle(event: FeedItem, members: readonly Member[]): CSSProperties {
@@ -53,6 +56,7 @@ export function CalendarMonthView({
   weekdayLabels,
   locale,
   onEventClick,
+  daySlotRef,
 }: CalendarMonthViewProps) {
   const selectedDate = Temporal.PlainDate.from(currentDate);
   const year = selectedDate.year;
@@ -133,6 +137,7 @@ export function CalendarMonthView({
                   );
                 })}
               </div>
+              <div data-calendar-day-slot={dateKey} ref={daySlotRef(dateKey)} />
             </div>
           );
         })}

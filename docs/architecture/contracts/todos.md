@@ -10,8 +10,8 @@ due date, an optional adult assignee and an optional repeat rule for the ones th
 as an insurance renewal or a filter change. They are separate from routines and chores, which
 belong to the children.
 
-Delivered: the server module, the HTTP API, the Plugin Management entry, the kiosk page `/todos`
-and a group in the Home agenda. To-dos are not shown in the full Calendar page (`/calendar`).
+Delivered: the server module, the HTTP API, the Plugin Management entry, the kiosk page `/todos`,
+a group in the Home agenda and the dated to-dos of each day on the Calendar page (`/calendar`).
 
 ## Vocabulary
 
@@ -73,7 +73,8 @@ and a group in the Home agenda. To-dos are not shown in the full Calendar page (
   not-found.
 - **List to-dos**: filters combine. `status` is `open` (default), `done` or `all`. `dueBy` keeps
   to-dos whose due date is on or before the given date, so it includes overdue ones and drops
-  undated ones. `listId` and `assigneeMemberId` match the stored ids; an id nobody holds matches
+  undated ones. `dueFrom` keeps to-dos whose due date is on or after the given date and drops
+  undated ones; with `dueBy` it bounds a range, both ends included. `listId` and `assigneeMemberId` match the stored ids; an id nobody holds matches
   nothing. Order: open before done, then due date ascending with undated last, then creation
   order.
 - **Create, read, edit, delete a to-do**: an unknown to-do is not-found. An edit may move the
@@ -93,30 +94,31 @@ All routes require the device credential. While the plugin is inactive the lifec
 503 with `{ "code": "plugin_unavailable", "message" }`: the code is in `code`, not in `error`,
 because the gate answers before any to-dos route runs. Schemas: OpenAPI tag `todos` in [the API reference](../../api/README.md).
 
-| Method and path                     | Result                                              |
-| ----------------------------------- | --------------------------------------------------- |
-| `GET /api/todos/lists`              | 200 `TodoList[]`                                    |
-| `POST /api/todos/lists`             | 201 `TodoList`; 400; 409 `duplicate_name`           |
-| `PATCH /api/todos/lists/{id}`       | 200 `TodoList`; 400; 404; 409 `duplicate_name`      |
-| `DELETE /api/todos/lists/{id}`      | 204; 404                                            |
-| `GET /api/todos`                    | 200 `Todo[]`; 400 on an invalid `status` or `dueBy` |
-| `POST /api/todos`                   | 201 `Todo`; 400                                     |
-| `GET /api/todos/{id}`               | 200 `Todo`; 404                                     |
-| `PATCH /api/todos/{id}`             | 200 `Todo`; 400; 404                                |
-| `DELETE /api/todos/{id}`            | 204; 404                                            |
-| `POST /api/todos/{id}/completion`   | 200 `TodoCompletion`; 404                           |
-| `DELETE /api/todos/{id}/completion` | 200 `Todo`; 404                                     |
+| Method and path                     | Result                                         |
+| ----------------------------------- | ---------------------------------------------- |
+| `GET /api/todos/lists`              | 200 `TodoList[]`                               |
+| `POST /api/todos/lists`             | 201 `TodoList`; 400; 409 `duplicate_name`      |
+| `PATCH /api/todos/lists/{id}`       | 200 `TodoList`; 400; 404; 409 `duplicate_name` |
+| `DELETE /api/todos/lists/{id}`      | 204; 404                                       |
+| `GET /api/todos`                    | 200 `Todo[]`; 400 on an invalid filter         |
+| `POST /api/todos`                   | 201 `Todo`; 400                                |
+| `GET /api/todos/{id}`               | 200 `Todo`; 404                                |
+| `PATCH /api/todos/{id}`             | 200 `Todo`; 400; 404                           |
+| `DELETE /api/todos/{id}`            | 204; 404                                       |
+| `POST /api/todos/{id}/completion`   | 200 `TodoCompletion`; 404                      |
+| `DELETE /api/todos/{id}/completion` | 200 `Todo`; 404                                |
 
 Validation failures use `{ "error": "validation_error", "message" }`, including an unknown
 `listId` or a rejected assignee in a body.
 
 ### Client surfaces
 
-| Surface           | Where                                                               | Gated by                           |
-| ----------------- | ------------------------------------------------------------------- | ---------------------------------- |
-| Kiosk page        | family route `todos` at `/todos`, `src/client/todos/TodosBoard.tsx` | route contribution `todos-api`     |
-| Navigation entry  | `shell.nav.todos` in the household chrome                           | plugin state                       |
-| Home agenda group | `src/client/todos/AgendaTodos.tsx`, hosted by `TodayAgenda`         | widget contribution `agenda-todos` |
+| Surface           | Where                                                               | Gated by                             |
+| ----------------- | ------------------------------------------------------------------- | ------------------------------------ |
+| Kiosk page        | family route `todos` at `/todos`, `src/client/todos/TodosBoard.tsx` | route contribution `todos-api`       |
+| Navigation entry  | `shell.nav.todos` in the household chrome                           | plugin state                         |
+| Home agenda group | `src/client/todos/AgendaTodos.tsx`, hosted by `TodayAgenda`         | widget contribution `agenda-todos`   |
+| Calendar days     | `src/client/todos/CalendarTodos.tsx`, hosted by `CalendarView`      | widget contribution `calendar-todos` |
 
 - The page writes without the admin PIN, as the Calendar page does for local events, with one
   exception: deleting a list asks for the admin PIN first, with the admin gate's PIN pad, and then
@@ -148,8 +150,25 @@ Validation failures use `{ "error": "validation_error", "message" }`, including 
   away again sends no rule, and on an edit clears the stored one in the same request.
 - A row of a repeating to-do carries an icon whose accessible name says how often it repeats, with
   its own singular wording ("Repeats every week", "Se repite cada semana").
-- The page and the agenda group read again after a completion, which is how the next occurrence
-  reaches the screen. It is due after today, so the agenda lists it on its own date.
+- The page, the agenda group and the Calendar days read again after a completion, which is how the
+  next occurrence reaches the screen. It is due after today, so the agenda lists it on its own
+  date.
+- The Calendar page gives the plugin an empty slot in each day it shows: after the events of a
+  month cell, and in a strip of seven columns under the week's time grid
+  (`src/client/calendar/day-slots.tsx`). `CalendarView` passes the visible days, those slots, its
+  Members read and its member filter to `CalendarTodos`, and holds no to-do data. The contribution
+  reads `GET /api/todos?status=open&dueFrom=<first day>&dueBy=<last day>` once for the visible
+  range and again when the range changes, when the tablet becomes visible and after a completion.
+  It draws each to-do in the slot of its due date as a checkbox row on the surface of its assignee,
+  the same row as in the agenda. An overdue to-do stays on its due date. Checking a row completes
+  the to-do; the title opens nothing.
+- The Calendar's member filter applies to those rows as it does to events: a to-do nobody is
+  assigned to always shows. The all-day filter does not apply.
+- A month cell grows with its to-dos as it does with its events. The week strip shares the fixed
+  height of the week view with the time grid: while the contribution is active it is 6rem high,
+  taken from the bottom of the grid, whether or not the week has to-dos, and it scrolls. To-dos
+  that arrive or leave therefore resize nothing. While the plugin is inactive the strip has no
+  height.
 
 ## Events
 
@@ -169,8 +188,8 @@ Owned tables, created by `drizzle/0003_todos.sql`:
   its next occurrence, also after that occurrence is deleted.
 
 The same migration adds `todos` to the plugin registry as inactive. The plugin owns no settings
-or jobs and ships no demo seed data. Manifest: route contribution `todos-api`, widget contribution
-`agenda-todos`, requirement `members`.
+or jobs and ships no demo seed data. Manifest: route contribution `todos-api`, widget contributions
+`agenda-todos` and `calendar-todos`, requirement `members`.
 
 ## Acceptance Criteria
 
@@ -216,15 +235,28 @@ or jobs and ships no demo seed data. Manifest: route contribution `todos-api`, w
   refuses a rule that is incomplete, out of range or without a due date.
 - **TODOS-AC-21** The form offers the repeat rule only with a due date; a repeating row is marked
   with a label in the UI language; after completing one, its next occurrence is in the list.
+- **TODOS-AC-22** `dueFrom` keeps to-dos due on or after its date and drops undated ones; with
+  `dueBy` it bounds an inclusive range; an invalid or repeated `dueFrom` is rejected.
+- **TODOS-AC-23** In month and in week mode the Calendar page shows each open to-do on its due
+  date, an overdue one included, and no undated or done one. The days come from the household
+  timezone.
+- **TODOS-AC-24** The Calendar page reads the to-dos once per visible range. Completing a row
+  removes it, and the next occurrence of a repeating to-do appears when its date is visible.
+- **TODOS-AC-25** While the plugin is inactive the Calendar page shows no to-dos and requests
+  none; a fault in the contribution leaves the calendar working.
+- **TODOS-AC-26** A day with many to-dos keeps the calendar's layout: the month cell grows inside
+  its column, and the week strip keeps its height and scrolls.
 
 Tests: `tests/boundary/todos-access.test.ts`, `todos-lists.test.ts`, `todos-items.test.ts`,
-`todos-assignee.test.ts`, `todos-repeat.test.ts`, `todos-rule-b.test.ts`;
-`tests/client/todos-board.test.tsx`, `todos-agenda.test.tsx`, `todos-nav.test.tsx`,
-`todos-presentation.test.ts`, `todos-repeat.test.ts`, `api.test.ts`; `tests/e2e/todos.spec.ts`
-runs the page, the agenda group and a repeating to-do against the real server.
+`todos-assignee.test.ts`, `todos-repeat.test.ts`, `todos-due-range.test.ts`,
+`todos-rule-b.test.ts`; `tests/client/todos-board.test.tsx`, `todos-agenda.test.tsx`,
+`todos-calendar.test.tsx`, `todos-nav.test.tsx`, `todos-presentation.test.ts`,
+`todos-repeat.test.ts`, `todos-fake-backend.test.ts`, `api.test.ts`; `tests/e2e/todos.spec.ts`
+runs the page, the agenda group, a repeating to-do and the Calendar days against the real server.
+The due-range cases in `tests/helpers/todos-due-range.ts` run against the real API and against
+the in-memory API of the client tests.
 
 ## Open Decisions
 
-- Whether to-dos appear in the full Calendar page.
 - Whether the kiosk remembers the selected list.
 - Whether to-dos feed a Daily Briefing block or emit events.

@@ -68,6 +68,8 @@ describe("CalendarView — household Calendar settings", () => {
       if (url.endsWith("/api/calendar/events") && init?.method === "POST") {
         return Promise.resolve(new Response(null, { status: 201 }));
       }
+      // The to-dos the Calendar page hosts have their own suite (todos-calendar.test.tsx).
+      if (url.includes("/api/todos?")) return Promise.resolve(new Response("[]"));
       throw new Error(`unexpected fetch: ${url}`);
     });
     vi.stubGlobal("fetch", mockFetch);
@@ -126,6 +128,8 @@ describe("CalendarView — household Calendar settings", () => {
         if (url.includes("/api/calendar/events") || url.includes("/api/members")) {
           return Promise.resolve(new Response("[]", { status: 200 }));
         }
+        // The to-dos the Calendar page hosts have their own suite (todos-calendar.test.tsx).
+        if (url.includes("/api/todos?")) return Promise.resolve(new Response("[]"));
         throw new Error(`unexpected fetch: ${url}`);
       })
     );
@@ -175,6 +179,8 @@ describe("CalendarView — household Calendar settings", () => {
       if (/\/api\/calendar\/events\/[^/]+$/.test(url) && method === "PATCH") {
         return Promise.resolve(new Response(null, { status: 200 }));
       }
+      // The to-dos the Calendar page hosts have their own suite (todos-calendar.test.tsx).
+      if (url.includes("/api/todos?")) return Promise.resolve(new Response("[]"));
       throw new Error(`unexpected fetch: ${url} (${method})`);
     });
     vi.stubGlobal("fetch", mockFetch);

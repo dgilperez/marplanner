@@ -1965,3 +1965,28 @@ guarantees:
     owner: todos
     spec: todos
     note: "Form offers repeat only with a due date; repeating row marked with a localized label; next occurrence shown after completion."
+  - id: TODOS-AC-22
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "dueFrom keeps to-dos due on or after the date; with dueBy an inclusive range; invalid or repeated dueFrom rejected."
+  - id: TODOS-AC-23
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Calendar page shows each open to-do on its due date in month and week mode; overdue stays on its date; household timezone."
+  - id: TODOS-AC-24
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "One to-dos read per visible range; completing removes the row; next occurrence shown when its date is visible."
+  - id: TODOS-AC-25
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "Inactive plugin: no to-dos and no requests on the Calendar page; a contribution fault leaves the calendar working."
+  - id: TODOS-AC-26
+    disposition: active
+    owner: todos
+    spec: todos
+    note: "A busy day keeps the calendar layout: month cell grows in its column, week strip keeps its height and scrolls."

@@ -11,8 +11,8 @@ service. The plugin is called "To-dos" in English and "Pendientes" in Spanish;
 "Tasks" / "Tareas" already means the children's chores.
 
 The plugin starts inactive in Admin → Plugins. While it is active the kiosk has a To-dos page at
-`/todos` and the Home agenda lists the to-dos that are due. To-dos do not appear in the full
-Calendar page (`/calendar`); that is not delivered.
+`/todos`, the Home agenda lists the to-dos that are due, and the Calendar page shows each dated
+to-do on its day.
 
 ## User workflows
 
@@ -67,8 +67,31 @@ date appears in the list, with the same title, notes, assignee and rule. The nex
 old one moved forward by whole intervals until it is after today, so finishing a weekly to-do
 three weeks late leaves one to-do for next week and not three overdue ones.
 
+### User Story 8 — See to-dos among the household's events
+
+An adult opens the Calendar page. Each day shows, after its events, the open to-dos due that day
+as rows with a checkbox, on the colour of the adult they are assigned to. The month view lists
+them inside the day; the week view lists them in a strip of seven columns under the time grid.
+Checking a row marks the to-do done and it leaves the day. When it repeats and its next date is on
+screen, the next occurrence appears on that date.
+
 ### Edge Cases
 
+- On the Calendar page an overdue to-do stays on the date it was due. The Home agenda is where
+  overdue to-dos are gathered under today.
+- A to-do with no due date is not on the Calendar page, and neither is a done one.
+- The Calendar's member filter hides the to-dos of members that are not selected and keeps the
+  ones nobody is assigned to. Its all-day filter leaves to-dos alone.
+- Tapping the title of a to-do on the Calendar page does what tapping its checkbox does. The
+  to-do is edited on the To-dos page.
+- A day with many to-dos makes its week row taller in the month view, as a day with many events
+  does. In the week view the strip is 6rem high, taken from the bottom of the time grid, in every
+  week while the plugin is active; a day with more to-dos than fit scrolls inside it.
+- The Calendar page says "No events for this period." about events only; to-dos do not change it.
+- The Calendar page reads active members. A to-do assigned to an archived member is drawn there
+  without an identity colour, and assistive technology gets the stored member id instead of a name.
+- While the plugin is inactive the Calendar page shows no to-dos and asks for none. If the to-dos
+  cannot be read, the page says so under the calendar with a retry, and the events stay.
 - A repeat rule needs a due date. The form disables "Repeats" until one is set, and the API
   rejects a rule without one. Taking the due date away from a repeating to-do in the form also
   stops it from repeating.
@@ -165,6 +188,15 @@ three weeks late leaves one to-do for next week and not three overdue ones.
   parent. Contract: TODOS-AC-19.
 - **FR-020**: The To-dos page MUST mark a repeating to-do with a label that says how often it
   repeats and MUST show the next occurrence after a completion. Contract: TODOS-AC-21.
+- **FR-021**: The listing MUST accept `dueFrom` and, with `dueBy`, return the to-dos due in that
+  range, both ends included. Contract: TODOS-AC-22.
+- **FR-022**: The Calendar page MUST show each open dated to-do on its due date in month and week
+  mode, MUST NOT move an overdue one to another day, and MUST complete one from its checkbox.
+  Contract: TODOS-AC-23, TODOS-AC-24.
+- **FR-023**: The Calendar page MUST read the to-dos once per visible range, and MUST show and
+  request none while the plugin is inactive. Contract: TODOS-AC-24, TODOS-AC-25.
+- **FR-024**: A day with many to-dos MUST NOT widen a calendar column or push the week's time grid
+  off screen. Contract: TODOS-AC-26.
 
 ### Key Entities
 

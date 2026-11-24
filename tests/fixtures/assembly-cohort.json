@@ -6506,6 +6506,55 @@
             "todos repeat — stored shape the table refuses an anchor day or an interval on a to-do without a rule",
             "0004_todo_repeat.sql on a database that already holds to-dos keeps every to-do as it was, with no rule",
             "0004_todo_repeat.sql on a database that already holds to-dos keeps the indexes, the earlier checks and the cascade from the list"
+          ],
+          "tests/client/todos-calendar.test.tsx": [
+            "Calendar to-dos — month shows each open to-do on the day it is due, and none that is undated or done",
+            "Calendar to-dos — month keeps an overdue to-do on its own due date and not on today",
+            "Calendar to-dos — month draws a to-do as a checkbox row beside the day's event chips, not as a chip",
+            "Calendar to-dos — month gives a to-do the identity colour of its assignee and names the assignee",
+            "Calendar to-dos — month reads the visible range once, and again only when the range changes",
+            "Calendar to-dos — month completes a to-do from its checkbox, takes it off the day and reads again",
+            "Calendar to-dos — month shows the next occurrence of a completed repeating to-do when it falls in the visible range",
+            "Calendar to-dos — month reports a completion that failed and keeps the to-do on its day",
+            "Calendar to-dos — month disables a checkbox while its completion is on its way, and only that one",
+            "Calendar to-dos — month lists every to-do of a busy day inside that day, as the month view does with events",
+            "Calendar to-dos — month follows the member filter: an unassigned to-do stays, another member's goes",
+            "Calendar to-dos — month reports a failed read with its own retry and keeps the events",
+            "Calendar to-dos — month reads again when the tablet becomes visible",
+            "Calendar to-dos — month labels each day's list Pendientes in Spanish",
+            "Calendar to-dos — week shows each open to-do in the column of its day, for the visible week only",
+            "Calendar to-dos — week keeps an overdue to-do on its own day when the week is shown",
+            "Calendar to-dos — week completes a to-do from the week and shows the next occurrence a week later",
+            "Calendar to-dos — week scrolls a busy day inside the strip so the time grid keeps its place",
+            "Calendar to-dos — week keeps the strip's room in a week without to-dos, so arriving to-dos resize nothing",
+            "Calendar to-dos — household day and plugin state takes the visible days from the household timezone, not from the tablet's",
+            "Calendar to-dos — household day and plugin state shows the to-dos while the plugin is active",
+            "Calendar to-dos — household day and plugin state shows nothing and requests nothing while the plugin is inactive",
+            "Calendar to-dos — household day and plugin state keeps the calendar working when the to-dos answer cannot be drawn"
+          ],
+          "tests/client/todos-fake-backend.test.ts": [
+            "in-memory to-dos API — due date range dueFrom keeps to-dos due on or after the date and drops undated ones",
+            "in-memory to-dos API — due date range dueFrom and dueBy bound a range, both ends included",
+            "in-memory to-dos API — due date range a one-day range keeps that day",
+            "in-memory to-dos API — due date range a range that ends before it starts is empty",
+            "in-memory to-dos API — due date range the range combines with status",
+            "in-memory to-dos API — due date range dueBy alone still includes every earlier date",
+            "in-memory to-dos API — due date range GET with a loosely formatted dueFrom -> 400",
+            "in-memory to-dos API — due date range GET with an impossible dueFrom -> 400",
+            "in-memory to-dos API — due date range GET with an empty dueFrom -> 400",
+            "in-memory to-dos API — due date range GET with a repeated dueFrom -> 400"
+          ],
+          "tests/boundary/todos-due-range.test.ts": [
+            "todos listing — due date range dueFrom keeps to-dos due on or after the date and drops undated ones",
+            "todos listing — due date range dueFrom and dueBy bound a range, both ends included",
+            "todos listing — due date range a one-day range keeps that day",
+            "todos listing — due date range a range that ends before it starts is empty",
+            "todos listing — due date range the range combines with status",
+            "todos listing — due date range dueBy alone still includes every earlier date",
+            "todos listing — due date range GET with a loosely formatted dueFrom -> 400",
+            "todos listing — due date range GET with an impossible dueFrom -> 400",
+            "todos listing — due date range GET with an empty dueFrom -> 400",
+            "todos listing — due date range GET with a repeated dueFrom -> 400"
           ]
         }
       },
@@ -6591,6 +6640,7 @@
           "tests/e2e/todos.spec.ts": [
             "8a9e645a89191b4a5606-b1ed5d2b20da9f5eb29c",
             "8a9e645a89191b4a5606-9ad53203e926e9437a41",
+            "8a9e645a89191b4a5606-af75e9cc0e9e5a52e840",
             "8a9e645a89191b4a5606-b5b5073016b5ec16ee52"
           ],
           "tests/e2e/weather.spec.ts": [
@@ -11997,8 +12047,8 @@
       "src/server/modules/todos/index.ts": {
         "layer": "server",
         "minimumTotals": {
-          "lines": 137,
-          "statements": 158,
+          "lines": 138,
+          "statements": 160,
           "functions": 38,
           "branches": 119
         },
@@ -12072,10 +12122,10 @@
       "src/client/todos/AgendaTodos.tsx": {
         "layer": "client",
         "minimumTotals": {
-          "lines": 39,
-          "statements": 51,
-          "functions": 17,
-          "branches": 30
+          "lines": 11,
+          "statements": 17,
+          "functions": 7,
+          "branches": 11
         },
         "minimumRates": {
           "lines": 100,
@@ -12241,6 +12291,81 @@
           "statements": 3,
           "functions": 1,
           "branches": 0
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 100
+        }
+      },
+      "src/client/todos/useOpenTodos.ts": {
+        "layer": "client",
+        "minimumTotals": {
+          "lines": 30,
+          "statements": 37,
+          "functions": 10,
+          "branches": 8
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 100
+        }
+      },
+      "src/client/todos/OpenTodoRow.tsx": {
+        "layer": "client",
+        "minimumTotals": {
+          "lines": 6,
+          "statements": 6,
+          "functions": 4,
+          "branches": 2
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 100
+        }
+      },
+      "src/client/todos/CalendarTodos.tsx": {
+        "layer": "client",
+        "minimumTotals": {
+          "lines": 17,
+          "statements": 20,
+          "functions": 6,
+          "branches": 12
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 100
+        }
+      },
+      "src/client/calendar/day-slots.tsx": {
+        "layer": "client",
+        "minimumTotals": {
+          "lines": 16,
+          "statements": 17,
+          "functions": 6,
+          "branches": 6
+        },
+        "minimumRates": {
+          "lines": 100,
+          "statements": 100,
+          "functions": 100,
+          "branches": 100
+        }
+      },
+      "src/client/todos/OpenTodosNotice.tsx": {
+        "layer": "client",
+        "minimumTotals": {
+          "lines": 3,
+          "statements": 4,
+          "functions": 1,
+          "branches": 10
         },
         "minimumRates": {
           "lines": 100,

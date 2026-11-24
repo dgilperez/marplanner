@@ -234,8 +234,9 @@ Specs: [weather](../features/weather.md)
 Meals, reminders, daily messages, daily briefing, printing, weather, time
 announcements, network devices, backups and to-dos are all **plugins**. Each one can be
 switched on or off from Admin → Plugins. [To-dos](../features/todos.md) (household to-dos
-for the adults) starts switched off; once active it adds a To-dos page to the navigation and
-lists the to-dos that are due in the Home agenda.
+for the adults) starts switched off; once active it adds a To-dos page to the navigation,
+lists the to-dos that are due in the Home agenda and shows each dated to-do on its day in the
+Calendar.
 
 - Each plugin declares the routes, settings, admin pages, widgets and background jobs
   it adds.

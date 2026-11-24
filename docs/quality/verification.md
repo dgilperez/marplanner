@@ -69,6 +69,15 @@ its other minimum totals and all minimum rates remain unchanged. Other files'
 minimum totals and rates remain unchanged. Runtime identity changes are limited to
 tests whose behavior changed and the added regressions.
 
+ADR-068 shows to-dos on the Calendar page with the row, the read and the completion the
+Home agenda group already had. Those moved out of `src/client/todos/AgendaTodos.tsx` into
+`useOpenTodos.ts`, `OpenTodoRow.tsx` and `OpenTodosNotice.tsx`, which the calendar days
+share. The measured executable cohort of `AgendaTodos.tsx` changes from 39 lines /
+51 statements / 17 functions / 30 branches to 11 / 17 / 7 / 11. Its per-file minimum
+totals follow that reviewed transformation and its minimum rates (100 / 100 / 100 / 96.66)
+remain unchanged. The three new files enter the cohort with
+their own totals and rates, and the agenda and calendar suites execute them.
+
 ## Change scope
 
 Review exact changed paths against the trusted declaration and compare only corresponding source cohorts when making historical claims. Test negative authorization, invalid input, transaction/side-effect failure, lifecycle cleanup and restart recovery through the public seam. A shared component or contract change requires regression checks across its consumers. Include built-process checks for startup, health, authorized access, scheduler-disabled operation and shutdown. Browser and external-effect acceptance must be recorded at the exact stage where those features are actually present.

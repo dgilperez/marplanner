@@ -54,8 +54,8 @@ migration. It starts inactive.
   before the household date. The agenda passes the household date and its Members read to the
   group and learns back only whether the group occupies room, which it needs for its empty
   message. A fault in the group is contained by the contribution boundary.
-- **Calendar page.** To-dos are not shown in `/calendar`. That page reads calendar occurrences,
-  and mixing dated to-dos into its week and month grids is a separate decision.
+- **Calendar page.** Decided on 2026-11-24, see "Calendar page" below. Until then to-dos were not
+  shown in `/calendar`.
 - **Selection.** The selected list is component state. No kiosk page persists view state across a
   reload (the Calendar page's week or month mode is not kept either), so this page does not.
 
@@ -104,11 +104,60 @@ service, a filter change.
 - **Repeat mark.** Rows of the To-dos page show an icon with an accessible name such as "Repeats
   every 2 weeks". The Home agenda rows do not, to keep them as compact as event rows.
 
+### Calendar page (2026-11-24)
+
+The household wants the adults' dated to-dos next to everyone's events. This replaces the earlier
+decision to keep them out of `/calendar`.
+
+- **A second widget contribution.** The plugin contributes `calendar-todos`, hosted by
+  `CalendarView` through `PluginContribution`. It is withdrawn while the plugin is inactive, and a
+  render fault is contained by the contribution boundary: the calendar keeps working and shows the
+  shared "unavailable" notice under itself.
+- **Day slots.** To-dos are not calendar occurrences, so they do not enter the feed or the
+  Schedule-X event collection. The Calendar page renders one empty slot per visible day and the
+  contribution draws into those slots with React portals. The views know nothing about to-dos, the
+  contribution is one component with one read, and a fault in it reaches one boundary. The month
+  view puts the slot after the events of each cell. The week view has no room for one inside the
+  Schedule-X grid, so a strip of seven columns sits under the grid, aligned with its day columns
+  through the grid's own `--sx-calendar-week-grid-padding-left`. Under, as in a month cell, where
+  the to-dos come after the day's events.
+- **The week view keeps its height, and the strip keeps its own.** Grid and strip share a frame
+  with the height the week view had before (`.sx-week-frame`), and while the contribution is
+  active the strip is 6rem high whether or not the week has to-dos. The week grid centres the
+  current hour once, when it opens; the to-dos of a week arrive after that. Two layouts were tried
+  and rejected because of it. A strip over the grid moved the centred hours down the page. A strip
+  under the grid that grew with its content covered the hours below the centre when the to-dos
+  arrived, which on a 720px-high screen hid the next hour's events. A strip of constant height
+  changes nothing after the grid has opened. `CalendarView` asks `usePluginContributionActive`
+  whether to keep that room, so an inactive plugin leaves the grid the whole frame.
+- **One read per range.** `GET /api/todos` gained `dueFrom`, so the contribution reads
+  `status=open&dueFrom=<first visible day>&dueBy=<last visible day>` once per range. The
+  contribution is mounted outside the calendar's loading branch: the calendar reads its events
+  again when the language arrives, and that must not read the to-dos twice.
+- **Overdue stays on its date.** The read is a plain date range. An overdue to-do shows on the day
+  it was due and nowhere else; the Home agenda is the surface that gathers overdue ones.
+- **Same row as the agenda.** A to-do is a checkbox row on the member-coloured surface
+  (`OpenTodoRow`), which is what tells it apart from an event chip. Checking it completes the
+  to-do. The title opens nothing; editing stays on the To-dos page. `useOpenTodos` holds the read,
+  the completion and the read after it for both the agenda group and the calendar days.
+- **Member filter.** The to-dos follow the Calendar's member filter, with the rule events have: an
+  item nobody is assigned to always shows. `memberFilter` in `calendar-presentation.ts` is that
+  rule for both. The all-day filter does not apply to to-dos.
+- **Overflow.** The month view has no "+N more" for events: a week row is as tall as its busiest
+  day. To-dos follow that rule. The week strip scrolls inside its 6rem, which leaves the grid at
+  least 30rem of the frame.
+- **Members.** The contribution uses the Calendar's Members read, which holds active members only.
+  A to-do assigned to an archived member is drawn without an identity colour.
+
 ## Consequences
 
 - The plugin delivers the server, the HTTP API (`/api/todos`, `/api/todos/lists`), the Plugin
-  Management label, the kiosk page and the Home agenda group. The manifest declares the
-  `todos-api` route contribution and the `agenda-todos` widget contribution.
+  Management label, the kiosk page, the Home agenda group and the Calendar days. The manifest
+  declares the `todos-api` route contribution and the `agenda-todos` and `calendar-todos` widget
+  contributions.
+- The Calendar page gained per-day slots for a plugin contribution
+  (`src/client/calendar/day-slots.tsx`) and `memberFilter`; `filterCalendarEvents` keeps its
+  behaviour and uses it.
 - The agenda gained a host slot for a plugin group. `AgendaGroup`, `AgendaRow` and
   `AgendaDetails` moved to `src/client/home/AgendaGroup.tsx` so the plugin's rows are drawn by
   the same components as the event rows.

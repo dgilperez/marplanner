@@ -11446,6 +11446,13 @@
           {
             "schema": { "type": "string" },
             "in": "query",
+            "name": "dueFrom",
+            "required": false,
+            "description": "YYYY-MM-DD. Keeps to-dos due on or after this date; undated to-dos are dropped. With dueBy it bounds a range, both ends included."
+          },
+          {
+            "schema": { "type": "string" },
+            "in": "query",
             "name": "dueBy",
             "required": false,
             "description": "YYYY-MM-DD. Keeps to-dos due on or before this date, overdue ones included; undated to-dos are dropped."
@@ -11469,7 +11476,7 @@
             }
           },
           "400": {
-            "description": "unknown status, invalid dueBy, or a repeated parameter",
+            "description": "unknown status, invalid dueFrom or dueBy, or a repeated parameter",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
             }

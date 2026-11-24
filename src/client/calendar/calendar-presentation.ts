@@ -130,23 +130,35 @@ export function toScheduleXEvent(event: FeedItem, timezone: string): CalendarEve
   return { id, title: displayTitle(event), start, end };
 }
 
-export function filterCalendarEvents(
-  events: readonly FeedItem[],
-  showAllDay: boolean,
+/** The Calendar page's member filter as a test over the members something is assigned to. It
+ * restricts only while some, but not all, active members are selected, and it never hides what
+ * nobody is assigned to. */
+export function memberFilter(
   selectedMemberIds: ReadonlySet<string>,
   activeMemberIds: readonly string[]
-): FeedItem[] {
+): (assignedTo: readonly string[]) => boolean {
   const activeSet = new Set(activeMemberIds);
   const selectedActiveIds = new Set(
     [...selectedMemberIds].filter((memberId) => activeSet.has(memberId))
   );
   const restrictMembers = selectedActiveIds.size > 0 && selectedActiveIds.size < activeSet.size;
 
-  return events.filter((event) => {
-    if (!showAllDay && event.allDay) return false;
-    if (!restrictMembers || event.assignedTo.length === 0) return true;
-    return event.assignedTo.some((memberId) => selectedActiveIds.has(memberId));
-  });
+  return (assignedTo) =>
+    !restrictMembers ||
+    assignedTo.length === 0 ||
+    assignedTo.some((memberId) => selectedActiveIds.has(memberId));
+}
+
+export function filterCalendarEvents(
+  events: readonly FeedItem[],
+  showAllDay: boolean,
+  selectedMemberIds: ReadonlySet<string>,
+  activeMemberIds: readonly string[]
+): FeedItem[] {
+  const showsAssignees = memberFilter(selectedMemberIds, activeMemberIds);
+  return events.filter(
+    (event) => (showAllDay || !event.allDay) && showsAssignees(event.assignedTo)
+  );
 }
 
 export function getEventsForCalendarDay(

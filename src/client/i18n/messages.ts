@@ -1186,6 +1186,7 @@ export const messages = {
     "todos.agenda.viewAll": "All to-dos",
     "todos.agenda.error": "Due to-dos could not be loaded.",
     "todos.agenda.retry": "Retry to-dos",
+    "todos.calendar.error": "The to-dos of these days could not be loaded.",
     "home.widgetError": "This section could not be displayed.",
     "dailyMessages.management.title": "Messages",
     "dailyMessages.management.description":
@@ -2947,6 +2948,7 @@ export const messages = {
     "todos.agenda.viewAll": "Todos los pendientes",
     "todos.agenda.error": "No se han podido cargar los pendientes de hoy.",
     "todos.agenda.retry": "Reintentar pendientes",
+    "todos.calendar.error": "No se han podido cargar los pendientes de estos días.",
     "home.widgetError": "No se pudo mostrar esta sección.",
     "dailyMessages.management.title": "Mensajes",
     "dailyMessages.management.description":

@@ -333,7 +333,7 @@ export const PLUGIN_MANIFESTS: readonly PluginManifest[] = Object.freeze([
       routes: ["todos-api"],
       admin: [],
       settings: [],
-      widgets: ["agenda-todos"],
+      widgets: ["agenda-todos", "calendar-todos"],
       services: [],
       contentSources: [],
       jobs: [],

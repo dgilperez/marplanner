@@ -9,10 +9,12 @@ export const listUrl = (listId: string) => `${LISTS_URL}/${encodeURIComponent(li
 export const todoUrl = (todoId: string) => `${TODOS_URL}/${encodeURIComponent(todoId)}`;
 export const completionUrl = (todoId: string) => `${todoUrl(todoId)}/completion`;
 
-/** The listing URL for the given filters; `dueBy` keeps to-dos due on or before that date. */
+/** The listing URL for the given filters. `dueFrom` and `dueBy` keep to-dos due on or after and on
+ * or before their dates. */
 export function todosUrl(filters: {
   listId?: string;
   status: TodoStatusFilter;
+  dueFrom?: string;
   dueBy?: string;
 }): string {
   return `${TODOS_URL}?${new URLSearchParams(filters)}`;

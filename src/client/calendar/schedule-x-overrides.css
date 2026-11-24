@@ -1,6 +1,15 @@
-.sx-week-embedded {
+/* The frame holds the week grid and, under it, the week's day slots. Its height is fixed, so the
+   slots take their room from the bottom of the grid and the page does not move. */
+.sx-week-frame {
+  display: flex;
+  flex-direction: column;
   min-height: 36rem;
   height: clamp(36rem, calc(100dvh - 18rem), 60rem);
+}
+
+.sx-week-embedded {
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .sx-week-embedded > .sx-react-calendar-wrapper {

@@ -239,6 +239,120 @@ test("completing a repeating to-do leaves its next occurrence in the list", asyn
   await expect(page.getByRole("checkbox", { name: title })).toHaveCount(0);
 });
 
+test("dated to-dos show on the Calendar page and are completed from it", async ({ page }) => {
+  test.setTimeout(120_000);
+  const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  const weeklyTitle = `Change the filter ${suffix}`;
+  const undatedTitle = `Fix the tap ${suffix}`;
+  const adultName = `Adult ${suffix}`;
+
+  const { m, today } = await provision(page);
+  const memberResponse = await page.request.post("/api/members", {
+    data: { displayName: adultName, role: "parent" },
+  });
+  expect(memberResponse.status()).toBe(201);
+  const adultId = ((await memberResponse.json()) as { id: string }).id;
+  createdMemberIds.push(adultId);
+  const listResponse = await page.request.post("/api/todos/lists", {
+    data: { name: `Maintenance ${suffix}` },
+  });
+  expect(listResponse.status()).toBe(201);
+  const listId = ((await listResponse.json()) as { id: string }).id;
+  createdListIds.push(listId);
+  const addTodo = async (data: Record<string, unknown>) =>
+    expect((await page.request.post("/api/todos", { data: { listId, ...data } })).status()).toBe(
+      201
+    );
+  await addTodo({
+    title: weeklyTitle,
+    dueDate: today,
+    assigneeMemberId: adultId,
+    repeat: { every: 1, unit: "week" },
+  });
+  await addTodo({ title: undatedTitle });
+  // A busy day: more to-dos than a month cell shows without growing.
+  const busyTitles = Array.from({ length: 8 }, (_, index) => `Errand ${index + 1} ${suffix}`);
+  for (const title of busyTitles) await addTodo({ title, dueDate: today });
+  const [year, month, day] = today.split("-").map(Number);
+  const nextWeek = new Date(Date.UTC(year, month - 1, day + 7)).toISOString().slice(0, 10);
+
+  // Month: the dated to-dos sit in today's cell as checkboxes; the undated one is nowhere.
+  await page.goto("/calendar");
+  const todayCell = page.locator(`[data-testid="calendar-month-grid"] [data-date="${today}"]`);
+  await expect(todayCell.getByRole("checkbox", { name: weeklyTitle })).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(page.getByRole("checkbox", { name: undatedTitle })).toHaveCount(0);
+  for (const title of busyTitles) {
+    await expect(todayCell.getByRole("checkbox", { name: title })).toBeVisible();
+  }
+  // The busy day grows its week row; it does not spill over the next column or widen the grid.
+  const overflow = await todayCell.evaluate((cell) => {
+    const grid = cell.closest('[data-testid="calendar-month-grid"]')!;
+    const column = cell.getBoundingClientRect();
+    const rows = [...cell.querySelectorAll("li")].map((row) => row.getBoundingClientRect());
+    return {
+      rowsInsideColumn: rows.every(
+        (row) => row.left >= column.left - 1 && row.right <= column.right + 1
+      ),
+      rowsInsideCell: rows.every((row) => row.bottom <= column.bottom + 1),
+      gridScrollsSideways: grid.scrollWidth > grid.clientWidth + 1,
+    };
+  });
+  expect(overflow).toEqual({
+    rowsInsideColumn: true,
+    rowsInsideCell: true,
+    gridScrollsSideways: false,
+  });
+
+  // Week: the same to-do is in today's column of the strip under the time grid.
+  await page.getByRole("button", { name: m["calendar.week"], exact: true }).click();
+  const weekSlot = (date: string) =>
+    page.locator(`[data-testid="calendar-week-day-slots"] [data-calendar-day-slot="${date}"]`);
+  await expect(weekSlot(today).getByRole("checkbox", { name: weeklyTitle })).toBeVisible();
+  await expect(page.getByTestId("calendar-week-grid")).toBeVisible();
+  // The strip has a fixed height taken from the week grid: the week view is as tall as ever,
+  // and nine to-dos in one day scroll inside the strip.
+  const weekHeights = await page.getByTestId("calendar-week-frame").evaluate((frame) => {
+    const strip = frame.querySelector('[data-testid="calendar-week-day-slots"]')!;
+    const grid = frame.querySelector('[data-testid="calendar-week-grid"]')!;
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    return {
+      frame: frame.getBoundingClientRect().height,
+      strip: strip.getBoundingClientRect().height,
+      grid: grid.getBoundingClientRect().height,
+      expected: Math.min(60 * rem, Math.max(36 * rem, window.innerHeight - 18 * rem)),
+      stripHeight: 6 * rem,
+      stripScrolls: strip.scrollHeight > strip.clientHeight,
+    };
+  });
+  expect(weekHeights.frame).toBeCloseTo(weekHeights.expected, 0);
+  expect(weekHeights.strip).toBeCloseTo(weekHeights.stripHeight, 0);
+  expect(weekHeights.stripScrolls).toBe(true);
+  expect(weekHeights.strip + weekHeights.grid).toBeCloseTo(weekHeights.frame, 0);
+  // The grid keeps its top edge: the strip is under it.
+  const gridBox = (await page.getByTestId("calendar-week-grid").boundingBox())!;
+  const frameBox = (await page.getByTestId("calendar-week-frame").boundingBox())!;
+  expect(gridBox.y).toBeCloseTo(frameBox.y, 0);
+
+  // Completing it there takes it off today; its next occurrence is a week later.
+  const completed = page.waitForResponse(
+    (response) => response.url().endsWith("/completion") && response.request().method() === "POST"
+  );
+  await weekSlot(today).getByRole("checkbox", { name: weeklyTitle }).click();
+  expect((await completed).status()).toBe(200);
+  await expect(weekSlot(today).getByRole("checkbox", { name: weeklyTitle })).toHaveCount(0);
+  await page.getByRole("button", { name: m["calendar.nextPeriod"] }).click();
+  await expect(weekSlot(nextWeek).getByRole("checkbox", { name: weeklyTitle })).toBeVisible();
+  await expect(weekSlot(nextWeek).getByRole("checkbox", { name: weeklyTitle })).not.toBeChecked();
+  // A week with one to-do keeps the same strip.
+  expect(
+    await page
+      .getByTestId("calendar-week-day-slots")
+      .evaluate((strip) => strip.getBoundingClientRect().height)
+  ).toBeCloseTo(weekHeights.stripHeight, 0);
+});
+
 test.describe("while the to-dos plugin is deactivated", () => {
   let server: Awaited<ReturnType<typeof startFreshPluginLifecycleServer>>;
 

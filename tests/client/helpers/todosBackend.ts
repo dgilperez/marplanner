@@ -90,7 +90,7 @@ const PLUGIN_CONTRIBUTIONS: Record<PluginId, PluginCatalogEntry["contributions"]
   "meals-recipes": blank({ routes: ["meals-recipes-api"], widgets: ["today-meals"] }),
   reminders: blank({ routes: ["reminders-api"] }),
   "daily-messages": blank({ routes: ["daily-messages-api"] }),
-  todos: blank({ routes: ["todos-api"], widgets: ["agenda-todos"] }),
+  todos: blank({ routes: ["todos-api"], widgets: ["agenda-todos", "calendar-todos"] }),
 };
 
 function blank(
@@ -289,9 +289,12 @@ export function todosBackend(options: TodosBackendOptions = {}) {
     };
     const status = one("status") ?? "open";
     if (!TODO_STATUS_FILTERS.includes(status as TodoStatusFilter)) throw invalid("status");
-    const dueBy = one("dueBy") === undefined ? undefined : date(one("dueBy"), "dueBy");
+    const bound = (name: string) => (one(name) === undefined ? undefined : date(one(name), name));
+    const dueFrom = bound("dueFrom");
+    const dueBy = bound("dueBy");
     const matches: ((todo: Todo) => boolean)[] = [
       (todo) => status === "all" || (status === "done") === (todo.completedAt !== null),
+      (todo) => dueFrom === undefined || (todo.dueDate !== null && todo.dueDate >= dueFrom),
       (todo) => dueBy === undefined || (todo.dueDate !== null && todo.dueDate <= dueBy),
     ];
     for (const key of ["listId", "assigneeMemberId"] as const) {

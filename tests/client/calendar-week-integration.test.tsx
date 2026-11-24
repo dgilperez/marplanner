@@ -64,6 +64,8 @@ function mockBackend(events: readonly FeedItem[]): void {
       if (url.includes("/api/members")) {
         return Promise.resolve(new Response(JSON.stringify(MEMBERS), { status: 200 }));
       }
+      // The to-dos the Calendar page hosts have their own suite (todos-calendar.test.tsx).
+      if (url.includes("/api/todos?")) return Promise.resolve(new Response("[]"));
       throw new Error(`unexpected fetch: ${url}`);
     })
   );

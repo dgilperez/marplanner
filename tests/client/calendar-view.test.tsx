@@ -110,6 +110,8 @@ function mockBackend(overrides: Partial<Record<string, () => Response>> = {}) {
       return Promise.resolve(json(MEMBERS));
     }
 
+    // The to-dos the Calendar page hosts have their own suite (todos-calendar.test.tsx).
+    if (url.includes("/api/todos?")) return Promise.resolve(new Response("[]"));
     throw new Error(`unexpected fetch: ${url} (${method})`);
   });
 

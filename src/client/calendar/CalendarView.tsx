@@ -32,8 +32,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CalendarMonthView } from "@/calendar/CalendarMonthView";
+import { WeekDaySlots, useDaySlots } from "@/calendar/day-slots";
 import { EventDescription } from "@/calendar/EventDescription";
 import { ScheduleXWeekView } from "@/calendar/ScheduleXWeekView";
+import { PluginContribution, usePluginContributionActive } from "@/plugins/contributions";
+import { CalendarTodos } from "@/todos/CalendarTodos";
 import {
   addCalendarDays,
   buildCalendarDays,
@@ -43,6 +46,7 @@ import {
   filterCalendarEvents,
   formatInstantAsDateTimeLocal,
   getHouseholdCalendarDate,
+  memberFilter,
   presentationEventId,
   shiftCalendarPeriod,
   type CalendarMode,
@@ -199,16 +203,18 @@ export function CalendarView() {
     () => members.filter((member) => member.lifecycle === "active"),
     [members]
   );
+  const activeMemberIds = useMemo(() => activeMembers.map((member) => member.id), [activeMembers]);
   const filteredEvents = useMemo(
-    () =>
-      filterCalendarEvents(
-        events,
-        showAllDay,
-        selectedFilterMemberIds,
-        activeMembers.map((member) => member.id)
-      ),
-    [activeMembers, events, selectedFilterMemberIds, showAllDay]
+    () => filterCalendarEvents(events, showAllDay, selectedFilterMemberIds, activeMemberIds),
+    [activeMemberIds, events, selectedFilterMemberIds, showAllDay]
   );
+  // The same member filter, for what a plugin contributes to a day.
+  const showsAssignees = useMemo(
+    () => memberFilter(selectedFilterMemberIds, activeMemberIds),
+    [activeMemberIds, selectedFilterMemberIds]
+  );
+  const [daySlots, daySlotRef] = useDaySlots();
+  const todosShown = usePluginContributionActive("todos", "widgets", "calendar-todos");
 
   const [showEdit, setShowEdit] = useState<string | null>(null);
   const [editingEvent, setEditingEvent] = useState<FeedItem | null>(null);
@@ -860,18 +866,21 @@ export function CalendarView() {
               weekdayLabels={weekdayLabels}
               locale={locale}
               onEventClick={setSelectedEvent}
+              daySlotRef={daySlotRef}
             />
           ) : (
-            <ScheduleXWeekView
-              key={`calendar-week-${currentDate}-${weekStartDay}-${timezone}`}
-              selectedDate={currentDate}
-              events={filteredEvents}
-              members={activeMembers}
-              timezone={timezone}
-              weekStartDay={weekStartDay}
-              onEventClick={setSelectedEvent}
-              scrollToNowKey={scrollToNowKey}
-            />
+            <WeekDaySlots days={visibleDates} slotRef={daySlotRef} reserved={todosShown}>
+              <ScheduleXWeekView
+                key={`calendar-week-${currentDate}-${weekStartDay}-${timezone}`}
+                selectedDate={currentDate}
+                events={filteredEvents}
+                members={activeMembers}
+                timezone={timezone}
+                weekStartDay={weekStartDay}
+                onEventClick={setSelectedEvent}
+                scrollToNowKey={scrollToNowKey}
+              />
+            </WeekDaySlots>
           )}
           {filteredEvents.length === 0 && (
             <div className="text-muted-foreground py-4 text-center">{t("calendar.noEvents")}</div>
@@ -1157,6 +1166,15 @@ export function CalendarView() {
           </Dialog>
         </>
       )}
+      {/* Outside the loading branch: a reload of the events must not read the to-dos again. */}
+      <PluginContribution pluginId="todos" group="widgets" contributionId="calendar-todos">
+        <CalendarTodos
+          days={visibleDates}
+          daySlots={daySlots}
+          members={members}
+          showsAssignees={showsAssignees}
+        />
+      </PluginContribution>
     </AdminPanel>
   );
 }

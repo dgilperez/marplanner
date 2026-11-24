@@ -63,6 +63,8 @@ describe("CalendarView — membersError clears on successful retry (#339)", () =
           })
         );
       }
+      // The to-dos the Calendar page hosts have their own suite (todos-calendar.test.tsx).
+      if (url.includes("/api/todos?")) return Promise.resolve(new Response("[]"));
       throw new Error(`unexpected fetch: ${url}`);
     });
 

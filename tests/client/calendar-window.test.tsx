@@ -47,6 +47,8 @@ describe("CalendarView — bounds the recurring-event list to a 28-day window (#
       if (url.includes("/api/calendar/events")) {
         return Promise.resolve(new Response(JSON.stringify(occurrences), { status: 200 }));
       }
+      // The to-dos the Calendar page hosts have their own suite (todos-calendar.test.tsx).
+      if (url.includes("/api/todos?")) return Promise.resolve(new Response("[]"));
       throw new Error(`unexpected fetch: ${url}`);
     });
     vi.stubGlobal("fetch", mockFetch);
@@ -123,6 +125,8 @@ describe("CalendarView — all-day window filter is LOCAL-calendar-date-safe (#6
       if (url.includes("/api/calendar/events")) {
         return Promise.resolve(new Response(JSON.stringify(occurrences), { status: 200 }));
       }
+      // The to-dos the Calendar page hosts have their own suite (todos-calendar.test.tsx).
+      if (url.includes("/api/todos?")) return Promise.resolve(new Response("[]"));
       throw new Error(`unexpected fetch: ${url}`);
     });
     vi.stubGlobal("fetch", mockFetch);
@@ -204,6 +208,8 @@ describe("CalendarView — window end survives a DST fall-back inside the span (
       if (url.includes("/api/calendar/events")) {
         return Promise.resolve(new Response(JSON.stringify(occurrences), { status: 200 }));
       }
+      // The to-dos the Calendar page hosts have their own suite (todos-calendar.test.tsx).
+      if (url.includes("/api/todos?")) return Promise.resolve(new Response("[]"));
       throw new Error(`unexpected fetch: ${url}`);
     });
     vi.stubGlobal("fetch", mockFetch);

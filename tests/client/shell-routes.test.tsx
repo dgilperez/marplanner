@@ -101,7 +101,7 @@ function activePlugin(id: PluginId): PluginCatalogEntry {
       routes: ["todos-api"],
       admin: [],
       settings: [],
-      widgets: ["agenda-todos"],
+      widgets: ["agenda-todos", "calendar-todos"],
       services: [],
       jobs: [],
     },

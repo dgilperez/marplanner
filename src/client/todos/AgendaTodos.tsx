@@ -1,20 +1,17 @@
 import { ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo } from "react";
 
-import { CheckboxField } from "@/components/CheckboxField";
-import { ErrorNotice } from "@/components/ErrorNotice";
-import { Button } from "@/components/ui/button";
-import { AgendaDetails, AgendaGroup, AgendaRow } from "@/home/AgendaGroup";
+import { AgendaGroup } from "@/home/AgendaGroup";
 import { memberProfiles } from "@/home/agenda-presentation";
 import { useTranslation } from "@/i18n";
-import type { MessageKey } from "@/i18n/messages";
-import { apiFetch, readJson } from "@/lib/api";
 import { appUrl } from "@/lib/base-path";
-import type { Member, Todo } from "../../shared";
+import type { Member } from "../../shared";
+import { OpenTodoRow } from "./OpenTodoRow";
+import { OpenTodosNotice } from "./OpenTodosNotice";
 import { TodoDue } from "./TodoDue";
-import { dueTodayThenOverdue, isOverdue, todoAssignees } from "./todo-presentation";
-import { completionUrl, todosErrorKey, todosUrl } from "./todos-api";
-import { usePendingIds } from "./usePendingIds";
+import { dueTodayThenOverdue, isOverdue } from "./todo-presentation";
+import { todosUrl } from "./todos-api";
+import { useOpenTodos } from "./useOpenTodos";
 
 export interface AgendaTodosProps {
   /** The household date the agenda shows. A new date mounts a new read. */
@@ -31,52 +28,17 @@ export interface AgendaTodosProps {
  * after a completion. */
 export function AgendaTodos({ date, members, onOccupiedChange }: AgendaTodosProps) {
   const { t } = useTranslation();
-  const [todos, setTodos] = useState<Todo[] | null>(null);
-  const [readFailed, setReadFailed] = useState(false);
-  const [writeError, setWriteError] = useState<MessageKey | null>(null);
-  const [pendingIds, trackPending] = usePendingIds();
-  // A slow read must not overwrite the answer of a later one.
-  const generation = useRef(0);
+  const { todos, readFailed, writeError, pendingIds, reload, complete } = useOpenTodos(
+    todosUrl({ status: "open", dueBy: date })
+  );
   const profiles = useMemo(() => memberProfiles(members), [members]);
-
-  const load = useCallback(async () => {
-    const current = ++generation.current;
-    try {
-      const due = await readJson<Todo[]>(todosUrl({ status: "open", dueBy: date }));
-      if (current !== generation.current) return;
-      setTodos(dueTodayThenOverdue(due, date));
-      setReadFailed(false);
-    } catch {
-      if (current === generation.current) setReadFailed(true);
-    }
-  }, [date]);
-
-  useEffect(() => {
-    void load();
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") void load();
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
-  }, [load]);
+  const rows = useMemo(() => dueTodayThenOverdue(todos ?? [], date), [todos, date]);
 
   const occupied = todos === null || todos.length > 0 || readFailed;
   // Layout effects, so the agenda never paints "nothing today" next to a group about to appear.
   useLayoutEffect(() => onOccupiedChange(occupied), [occupied, onOccupiedChange]);
   useLayoutEffect(() => () => onOccupiedChange(false), [onOccupiedChange]);
 
-  async function complete(todo: Todo) {
-    setWriteError(null);
-    try {
-      await trackPending(todo.id, () => apiFetch(completionUrl(todo.id), { method: "POST" }));
-      setTodos((current) => current?.filter((item) => item.id !== todo.id) ?? null);
-      void load();
-    } catch (error) {
-      setWriteError(todosErrorKey(error, "todos.actionError"));
-    }
-  }
-
-  const rows = todos ?? [];
   if (rows.length === 0 && !readFailed) return null;
 
   return (
@@ -92,44 +54,30 @@ export function AgendaTodos({ date, members, onOccupiedChange }: AgendaTodosProp
         </a>
       }
     >
-      {(readFailed || writeError !== null) && (
-        <li className="space-y-2">
-          <ErrorNotice
-            message={readFailed ? t("todos.agenda.error") : writeError && t(writeError)}
-          />
-          {readFailed && (
-            <Button type="button" variant="outline" onClick={() => void load()}>
-              {t("todos.agenda.retry")}
-            </Button>
+      <OpenTodosNotice
+        as="li"
+        className="space-y-2"
+        readErrorKey="todos.agenda.error"
+        readFailed={readFailed}
+        writeError={writeError}
+        reload={reload}
+      />
+      {rows.map((todo) => (
+        <OpenTodoRow
+          key={todo.id}
+          todo={todo}
+          profiles={profiles}
+          pending={pendingIds.has(todo.id)}
+          onComplete={(item) => void complete(item)}
+          labelClassName="font-bold"
+        >
+          {isOverdue(todo, date) && (
+            <p className="pb-1 pl-[calc(var(--control-height)+0.5rem)] text-sm">
+              <TodoDue todo={todo} today={date} />
+            </p>
           )}
-        </li>
-      )}
-      {rows.map((todo) => {
-        const { activeAssignees, fallbackAssigneeLabels } = todoAssignees(todo, profiles);
-        return (
-          <AgendaRow key={todo.id} colorKeys={activeAssignees.map((member) => member.colorKey)}>
-            <CheckboxField
-              checked={false}
-              disabled={pendingIds.has(todo.id)}
-              onChange={() => void complete(todo)}
-              label={todo.title}
-              className="w-full font-bold wrap-anywhere"
-            />
-            {isOverdue(todo, date) && (
-              <p className="pb-1 pl-[calc(var(--control-height)+0.5rem)] text-sm">
-                <TodoDue todo={todo} today={date} />
-              </p>
-            )}
-            <AgendaDetails
-              details={[
-                ...activeAssignees.map((member) => member.label),
-                ...fallbackAssigneeLabels,
-                ...(todo.assigneeMemberId === null ? [t("agenda.unassigned")] : []),
-              ]}
-            />
-          </AgendaRow>
-        );
-      })}
+        </OpenTodoRow>
+      ))}
     </AgendaGroup>
   );
 }
